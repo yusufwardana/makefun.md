@@ -16,11 +16,11 @@ const STATUS_META: Record<
   SubmissionStatus,
   { label: string; colorClass: string; Icon: React.ComponentType<{ className?: string }> }
 > = {
-  submitted: { label: 'Submitted', colorClass: 'text-[#93C5FD]', Icon: Clock },
-  accepted: { label: 'Accepted', colorClass: 'text-[#3B82F6]', Icon: CheckCircle2 },
-  judged: { label: 'Judged', colorClass: 'text-[#F59E0B]', Icon: AlertCircle },
-  awarded: { label: 'Awarded', colorClass: 'text-[#10B981]', Icon: Award },
-  rejected: { label: 'Rejected', colorClass: 'text-[#EF4444]', Icon: XCircle },
+  submitted: { label: 'Submitted', colorClass: 'text-accent', Icon: Clock },
+  accepted: { label: 'Accepted', colorClass: 'text-accent', Icon: CheckCircle2 },
+  judged: { label: 'Judged', colorClass: 'text-warning', Icon: AlertCircle },
+  awarded: { label: 'Awarded', colorClass: 'text-success', Icon: Award },
+  rejected: { label: 'Rejected', colorClass: 'text-danger', Icon: XCircle },
 };
 
 export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards }) => {
@@ -103,12 +103,12 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-white/[0.07]">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-line">
         <div>
-          <h1 className="text-xl font-semibold text-[#F3F4F6] tracking-tight">
+          <h1 className="text-[clamp(1.55rem,3vw,2.25rem)] font-semibold text-ink tracking-tight">
             Verified Submissions
           </h1>
-          <p className="text-xs text-[#9CA3AF] mt-1">
+          <p className="text-xs text-muted mt-1">
             Official submissions matched for {accountHandle} or recorded from verified make.fun receipts
           </p>
         </div>
@@ -121,7 +121,7 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
         </div>
       </div>
 
-      <div className="rounded-md bg-[#0F1216] border border-white/[0.08] px-4 py-2.5 text-xs text-[#9CA3AF]">
+      <div className="rounded-md bg-surface border border-line px-4 py-2.5 text-xs text-muted">
         Submission status comes from make.fun or a verified receipt. Local evidence is reviewed in Evidence Monitor.
       </div>
 
@@ -131,7 +131,7 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
           <form onSubmit={handleRecordSubmission} className="p-5 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Competition</label>
+                <label className="block text-xs text-muted mb-1">Competition</label>
                 <Select value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full">
                   {bounties.map((b) => (
                     <option key={b.slug} value={b.slug}>
@@ -141,7 +141,7 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
                 </Select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Entry Title</label>
+                <label className="block text-xs text-muted mb-1">Entry Title</label>
                 <Input
                   value={entryTitle}
                   onChange={(e) => setEntryTitle(e.target.value)}
@@ -150,7 +150,7 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
                 />
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Verified Status</label>
+                <label className="block text-xs text-muted mb-1">Verified Status</label>
                 <Select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as SubmissionStatus)}
@@ -166,7 +166,7 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Commit SHA (Optional)</label>
+                <label className="block text-xs text-muted mb-1">Commit SHA (Optional)</label>
                 <Input
                   value={commitSha}
                   onChange={(e) => setCommitSha(e.target.value)}
@@ -174,7 +174,7 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
                 />
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Repo URL (Optional)</label>
+                <label className="block text-xs text-muted mb-1">Repo URL (Optional)</label>
                 <Input
                   value={repoUrl}
                   onChange={(e) => setRepoUrl(e.target.value)}
@@ -182,7 +182,7 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
                 />
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Rank (If Judged)</label>
+                <label className="block text-xs text-muted mb-1">Rank (If Judged)</label>
                 <Input
                   type="number"
                   value={rank}
@@ -191,7 +191,7 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
                 />
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Score (If Judged)</label>
+                <label className="block text-xs text-muted mb-1">Score (If Judged)</label>
                 <Input
                   value={scoreDisplay}
                   onChange={(e) => setScoreDisplay(e.target.value)}
@@ -215,16 +215,17 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
         <PanelHeader
           title={`Submission Records (${filtered.length})`}
           actions={
-            <div className="flex items-center gap-1 p-1 bg-[#090B0E] border border-white/[0.08] rounded-md">
+            <div role="group" aria-label="Filter submission records" className="flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-line bg-canvas p-1">
               {(['all', 'submitted', 'accepted', 'judged', 'awarded'] as const).map((st) => (
                 <button
                   key={st}
                   type="button"
                   onClick={() => setFilterStatus(st)}
-                  className={`px-2.5 py-1 text-xs rounded cursor-pointer capitalize ${
+                  aria-pressed={filterStatus === st}
+                  className={`min-h-11 px-2.5 text-xs rounded cursor-pointer capitalize ${
                     filterStatus === st
-                      ? 'bg-[#1C212A] text-[#F3F4F6]'
-                      : 'text-[#9CA3AF] hover:text-[#F3F4F6]'
+                      ? 'bg-accent-wash text-accent'
+                      : 'text-muted hover:text-ink'
                   }`}
                 >
                   {st}
@@ -237,7 +238,7 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
         {loading ? (
           <div className="p-6 space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 rounded bg-white/[0.03] animate-pulse" />
+              <div key={i} className="h-12 rounded bg-hover animate-pulse" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -251,9 +252,9 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
             }
           />
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" role="region" aria-label="Submission records table" tabIndex={0}>
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-white/[0.07] text-xs text-[#9CA3AF]">
+              <thead className="border-b border-line text-xs text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Competition</th>
                   <th className="px-4 py-3 font-medium">Entry Title</th>
@@ -263,19 +264,19 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
                   <th className="px-4 py-3 font-medium">Verified At</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.06]">
+              <tbody className="divide-y divide-line">
                 {filtered.map((s) => {
                   const meta = STATUS_META[s.status] || STATUS_META.submitted;
                   const Icon = meta.Icon;
                   return (
-                    <tr key={s.id} className="hover:bg-white/[0.02]">
-                      <td className="px-4 py-3 font-medium text-[#F3F4F6]">
+                    <tr key={s.id} className="hover:bg-hover">
+                      <td className="px-4 py-3 font-medium text-ink">
                         {s.bountyTitle || s.bountySlug}
                       </td>
-                      <td className="px-4 py-3 text-[#D1D5DB]">
+                      <td className="px-4 py-3 text-secondary">
                         <div>{s.entryTitle}</div>
                         {s.commitSha && (
-                          <div className="font-mono text-[11px] text-[#6B7280]">
+                          <div className="font-mono text-[11px] text-muted">
                             {s.commitSha.slice(0, 12)}
                           </div>
                         )}
@@ -286,12 +287,12 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
                           <span>{meta.label}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums text-xs text-[#F3F4F6]">
+                      <td className="px-4 py-3 text-right font-mono tabular-nums text-xs text-ink">
                         {s.rank ? `#${s.rank}` : '—'}
                         {s.scoreDisplay ? ` · ${s.scoreDisplay}` : ''}
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-[#9CA3AF]">{s.source}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-[#9CA3AF] tabular-nums">
+                      <td className="px-4 py-3 font-mono text-xs text-muted">{s.source}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted tabular-nums">
                         {formatDateTime(s.verifiedAt)}
                       </td>
                     </tr>

@@ -170,17 +170,17 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-white/[0.07]">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-line">
         <div>
-          <h1 className="text-xl font-semibold text-[#F3F4F6] tracking-tight">Evidence Monitor</h1>
-          {initialSlug && <p className="mt-1 text-xs text-[#D1D5DB]">Handoff bounty · {initialSlug}</p>}
+          <h1 className="text-[clamp(1.55rem,3vw,2.25rem)] font-semibold text-ink tracking-tight">Evidence Monitor</h1>
+          {initialSlug && <p className="mt-1 text-xs text-secondary">Handoff bounty · {initialSlug}</p>}
           <Button variant="ghost" size="sm" onClick={onSubmissions}>Track submissions</Button>
-          <p className="text-xs text-[#9CA3AF] mt-1">
+          <p className="text-xs text-muted mt-1">
             Strictly read-only inspection of authorized session exports, logs, and local project evidence
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <label className="inline-flex items-center justify-center h-8 px-3 rounded-md text-xs font-medium bg-[#14181E] text-[#F3F4F6] hover:bg-[#1C212A] border border-white/[0.1] cursor-pointer gap-1.5">
+          <label className="inline-flex items-center justify-center h-8 px-3 rounded-md text-xs font-medium bg-quiet text-ink hover:bg-hover border border-line cursor-pointer gap-1.5">
             <Upload className="w-3.5 h-3.5" />
             <span>Upload Export File</span>
             <input
@@ -202,20 +202,20 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
       </div>
 
       {/* Read-only boundary notice */}
-      <div className="rounded-md bg-[#0F1216] border border-white/[0.08] px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2 text-[#D1D5DB]">
-          <ShieldCheck className="w-4 h-4 text-[#10B981] shrink-0" />
+      <div className="rounded-md bg-surface border border-line px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2 text-secondary">
+          <ShieldCheck className="w-4 h-4 text-success shrink-0" />
           <span>
             Read-only boundary enforced: Evidence Monitor never executes prompts, controls agent processes, or infers submission success from local files.
           </span>
         </div>
-        <span className="font-mono text-[#9CA3AF]">
+        <span className="font-mono text-muted">
           Permitted paths: {permittedPaths.join(', ') || 'None'}
         </span>
       </div>
 
       {scanResultMsg && (
-        <div className="rounded-md bg-[#3B82F6]/10 border border-[#3B82F6]/30 px-4 py-2.5 text-xs text-[#93C5FD]">
+        <div className="rounded-md bg-accent/10 border border-accent/30 px-4 py-2.5 text-xs text-accent">
           {scanResultMsg}
         </div>
       )}
@@ -226,7 +226,7 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
           <form onSubmit={handleImportSubmit} className="p-5 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Evidence Type</label>
+                <label className="block text-xs text-muted mb-1">Evidence Type</label>
                 <Select
                   value={importType}
                   onChange={(e) =>
@@ -240,7 +240,7 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
                 </Select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Source File / Name</label>
+                <label className="block text-xs text-muted mb-1">Source File / Name</label>
                 <Input
                   value={importName}
                   onChange={(e) => setImportName(e.target.value)}
@@ -249,7 +249,7 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
                 />
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Linked Bounty (Optional)</label>
+                <label className="block text-xs text-muted mb-1">Linked Bounty (Optional)</label>
                 <Select
                   value={importSlug}
                   onChange={(e) => setImportSlug(e.target.value)}
@@ -264,7 +264,7 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
                 </Select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Session ID (Optional)</label>
+                <label className="block text-xs text-muted mb-1">Session ID (Optional)</label>
                 <Input
                   value={importSessionId}
                   onChange={(e) => setImportSessionId(e.target.value)}
@@ -273,7 +273,7 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
               </div>
             </div>
             <div>
-              <label className="block text-xs text-[#9CA3AF] mb-1">Raw Export / Log Content</label>
+              <label className="block text-xs text-muted mb-1">Raw Export / Log Content</label>
               <Textarea
                 rows={6}
                 value={importContent}
@@ -296,7 +296,7 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
       )}
 
       {loading ? (
-        <div className="h-64 rounded-lg bg-[#0F1216] border border-white/[0.08] animate-pulse" />
+        <div className="h-64 rounded-lg bg-surface border border-line animate-pulse" />
       ) : evidence.length === 0 ? (
         <Panel>
           <EmptyState
@@ -316,20 +316,20 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
               title={`Captured Evidence (${evidence.length})`}
               subtitle="Click any artifact to inspect raw read-only logs"
             />
-            <div className="divide-y divide-white/[0.06]">
+            <div className="divide-y divide-line">
               {evidence.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setSelectedItem(item)}
                   className={`w-full text-left px-4 py-3.5 transition-colors cursor-pointer ${
-                    selectedItem?.id === item.id ? 'bg-[#3B82F6]/10' : 'hover:bg-white/[0.02]'
+                    selectedItem?.id === item.id ? 'bg-accent/10' : 'hover:bg-hover'
                   }`}
                 >
-                  <div className="text-sm font-medium text-[#F3F4F6] truncate">
+                  <div className="text-sm font-medium text-ink truncate">
                     {item.sourcePathOrName}
                   </div>
-                  <div className="text-xs text-[#9CA3AF] mt-1 font-mono tabular-nums">
+                  <div className="text-xs text-muted mt-1 font-mono tabular-nums">
                     {item.sourceType} · {item.metadata.turnCount ?? 0} lines ·{' '}
                     {formatDateTime(item.importedAt)}
                   </div>
@@ -349,7 +349,7 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
             />
             {selectedItem && (
               <div className="p-5 space-y-4">
-                <div className="flex flex-wrap gap-4 text-xs text-[#9CA3AF] font-mono tabular-nums">
+                <div className="flex flex-wrap gap-4 text-xs text-muted font-mono tabular-nums">
                   <span>Lines: {selectedItem.metadata.turnCount ?? 0}</span>
                   <span>Timestamps detected: {selectedItem.metadata.timestampsFound ?? 0}</span>
                   <span>Bytes: {selectedItem.metadata.byteSize ?? 0}</span>
@@ -357,13 +357,13 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
                 </div>
 
                 {/* B3: Read-Only 9-Gate Transcript Pre-Check */}
-                <div className="rounded-md bg-[#090B0E] border border-white/[0.08] p-3.5 space-y-3">
+                <div className="rounded-md bg-canvas border border-line p-3.5 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <div className="text-xs font-semibold text-[#F3F4F6]">
+                      <div className="text-xs font-semibold text-ink">
                         Transcript Gate Pre-Check (9 local checks)
                       </div>
-                      <div className="text-[11px] text-[#9CA3AF]">
+                      <div className="text-[11px] text-muted">
                         Local read-only heuristic pre-check; official validation still runs on make.fun at submit time.
                       </div>
                     </div>
@@ -394,65 +394,65 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
                   </div>
 
                   {precheckError && (
-                    <div className="text-xs text-[#FCA5A5]">{precheckError}</div>
+                    <div className="text-xs text-danger">{precheckError}</div>
                   )}
 
                   {precheckReport && (
-                    <div className="space-y-3 pt-2 border-t border-white/[0.06]">
+                    <div className="space-y-3 pt-2 border-t border-line">
                       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono tabular-nums">
                         <span
                           className={
                             precheckReport.overallReady
-                              ? 'text-[#10B981] font-semibold'
-                              : 'text-[#FCD34D] font-semibold'
+                              ? 'text-success font-semibold'
+                              : 'text-warning font-semibold'
                           }
                         >
                           {precheckReport.overallReady
                             ? 'LOCAL PRE-CHECK PASSED (0 hard failures)'
                             : 'LOCAL PRE-CHECK HAS FAILURES — Review below'}
                         </span>
-                        <span className="text-[#9CA3AF]">
+                        <span className="text-muted">
                           Records: {precheckReport.parsedRecords} · Assistant turns:{' '}
                           {precheckReport.assistantTextTurns} · Edits: {precheckReport.toolEditTurns} ·
                           Timestamps: {precheckReport.timestampsCount}
                         </span>
                       </div>
 
-                      <div className="divide-y divide-white/[0.05] text-xs">
+                      <div className="divide-y divide-line text-xs">
                         {precheckReport.checks.map((chk) => (
                           <div key={chk.gateId} className="py-2 flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <div className="font-medium text-[#F3F4F6] flex items-center gap-1.5">
+                              <div className="font-medium text-ink flex items-center gap-1.5">
                                 {chk.status === 'pass' && (
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981] shrink-0" />
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
                                 )}
                                 {chk.status === 'fail' && (
-                                  <XCircle className="w-3.5 h-3.5 text-[#EF4444] shrink-0" />
+                                  <XCircle className="w-3.5 h-3.5 text-danger shrink-0" />
                                 )}
                                 {chk.status === 'warn' && (
-                                  <AlertTriangle className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />
+                                  <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
                                 )}
                                 {chk.status === 'manual_at_submit' && (
-                                  <Clock className="w-3.5 h-3.5 text-[#93C5FD] shrink-0" />
+                                  <Clock className="w-3.5 h-3.5 text-accent shrink-0" />
                                 )}
                                 <span>{chk.title}</span>
-                                <span className="font-mono text-[10px] text-[#6B7280]">
+                                <span className="font-mono text-[10px] text-muted">
                                   ({chk.gateId})
                                 </span>
                               </div>
-                              <div className="text-[11px] text-[#9CA3AF] mt-0.5 pl-5">
+                              <div className="text-[11px] text-muted mt-0.5 pl-5">
                                 {chk.detail}
                               </div>
                             </div>
                             <span
                               className={`font-mono text-[11px] uppercase shrink-0 ${
                                 chk.status === 'pass'
-                                  ? 'text-[#10B981]'
+                                  ? 'text-success'
                                   : chk.status === 'fail'
-                                    ? 'text-[#EF4444]'
+                                    ? 'text-danger'
                                     : chk.status === 'warn'
-                                      ? 'text-[#F59E0B]'
-                                      : 'text-[#93C5FD]'
+                                      ? 'text-warning'
+                                      : 'text-accent'
                               }`}
                             >
                               {chk.status === 'manual_at_submit' ? 'AT SUBMIT' : chk.status}
@@ -464,7 +464,7 @@ export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmi
                   )}
                 </div>
 
-                <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed bg-[#090B0E] border border-white/[0.07] rounded-md p-4 text-[#D1D5DB] max-h-[500px] overflow-y-auto">
+                <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed bg-canvas border border-line rounded-md p-4 text-secondary max-h-[500px] overflow-y-auto">
                   {selectedItem.rawContent}
                 </pre>
               </div>

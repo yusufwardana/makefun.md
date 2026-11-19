@@ -27,11 +27,15 @@ import type {
 } from '../../types/command-center';
 
 interface BountyExplorerViewProps {
+  initialQuery: string;
+  initialWatchlist: boolean;
   onInspectBounty: (slug: string) => void;
   onDataMutated: () => void;
 }
 
 export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
+  initialQuery,
+  initialWatchlist,
   onInspectBounty,
   onDataMutated,
 }) => {
@@ -44,10 +48,10 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
   const [syncing, setSyncing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialQuery);
   const [category, setCategory] = useState('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'resolved'>('open');
-  const [watchlistedOnly, setWatchlistedOnly] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'resolved'>(initialQuery || initialWatchlist ? 'all' : 'open');
+  const [watchlistedOnly, setWatchlistedOnly] = useState(initialWatchlist);
   const [sortBy, setSortBy] = useState('status_deadline');
 
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
@@ -208,10 +212,10 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
   return (
     <div className="space-y-5">
       {/* Header & Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-white/[0.07]">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-line">
         <div>
-          <h1 className="text-xl font-semibold text-[#F3F4F6] tracking-tight">Bounty Explorer</h1>
-          <p className="text-xs text-[#9CA3AF] mt-1">
+          <h1 className="text-[clamp(1.55rem,3vw,2.25rem)] font-semibold text-ink tracking-tight">Bounty Explorer</h1>
+          <p className="text-xs text-muted mt-1">
             Read-only discovery from make.fun official endpoints · Last synced:{' '}
             {lastSyncAt ? formatDateTime(lastSyncAt) : 'Never'}
           </p>
@@ -235,35 +239,37 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
       </div>
 
       {syncWarning && (
-        <div className="rounded-md bg-[#F59E0B]/10 border border-[#F59E0B]/30 px-4 py-2.5 text-xs text-[#FCD34D]">
+        <div className="rounded-md bg-warning/10 border border-warning/30 px-4 py-2.5 text-xs text-warning">
           Sync status notice: {syncWarning}. Showing locally cached SQLite snapshots.
         </div>
       )}
 
       {/* Search & Filter Toolbar */}
       <Panel className="p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-[220px]">
-            <Search className="w-4 h-4 text-[#6B7280] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <form onSubmit={handleSearchSubmit} className="relative w-full basis-full md:flex-1 md:basis-64">
+            <Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search bounties"
               placeholder="Search title, slug, skill, category..."
               className="pl-9"
             />
           </form>
 
           {/* Segmented status filter */}
-          <div className="flex items-center gap-1 p-1 bg-[#090B0E] border border-white/[0.08] rounded-md">
+          <div className="flex items-center gap-1 p-1 bg-canvas border border-line rounded-md">
             {(['open', 'resolved', 'all'] as const).map((st) => (
               <button
                 key={st}
                 type="button"
                 onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1 text-xs font-medium rounded transition-colors cursor-pointer whitespace-nowrap ${
+                aria-pressed={statusFilter === st}
+                className={`min-h-11 px-3 text-xs font-medium rounded transition-colors cursor-pointer whitespace-nowrap ${
                   statusFilter === st
-                    ? 'bg-[#1C212A] text-[#F3F4F6]'
-                    : 'text-[#9CA3AF] hover:text-[#F3F4F6]'
+                    ? 'bg-accent-wash text-accent'
+                    : 'text-muted hover:text-ink'
                 }`}
               >
                 {st === 'open' ? 'Open' : st === 'resolved' ? 'Resolved' : 'All'}
@@ -275,7 +281,7 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             aria-label="Filter by category"
-            className="w-40"
+            className="w-40 max-w-full"
           >
             <option value="all">All Categories</option>
             {categories.map((c) => (
@@ -289,7 +295,7 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             aria-label="Sort bounties"
-            className="w-48"
+            className="w-48 max-w-full"
           >
             <option value="status_deadline">Open First & Latest</option>
             <option value="ratio_desc">Best $/Entry Ratio</option>
@@ -322,56 +328,56 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
               </Button>
             }
           />
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Bounty comparison">
             <table className="w-full text-left text-xs">
-              <thead className="border-b border-white/[0.07] text-[#9CA3AF]">
+              <thead className="border-b border-line text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Dimension</th>
                   {comparedBounties.map((b) => (
-                    <th key={b.slug} className="px-4 py-3 font-semibold text-[#F3F4F6]">
+                    <th key={b.slug} className="px-4 py-3 font-semibold text-ink">
                       {b.title}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.06]">
+              <tbody className="divide-y divide-line">
                 <tr>
-                  <td className="px-4 py-2.5 text-[#9CA3AF]">Category & Skills</td>
+                  <td className="px-4 py-2.5 text-muted">Category & Skills</td>
                   {comparedBounties.map((b) => (
-                    <td key={b.slug} className="px-4 py-2.5 text-[#F3F4F6]">
+                    <td key={b.slug} className="px-4 py-2.5 text-ink">
                       {b.category} · {b.skills.join(', ') || 'None listed'}
                     </td>
                   ))}
                 </tr>
                 <tr>
-                  <td className="px-4 py-2.5 text-[#9CA3AF]">Prize Pool</td>
+                  <td className="px-4 py-2.5 text-muted">Prize Pool</td>
                   {comparedBounties.map((b) => (
-                    <td key={b.slug} className="px-4 py-2.5 font-mono tabular-nums text-[#10B981]">
+                    <td key={b.slug} className="px-4 py-2.5 font-mono tabular-nums text-success">
                       {formatUsd(b.potUsd || b.rewardAmount)}
                     </td>
                   ))}
                 </tr>
                 <tr>
-                  <td className="px-4 py-2.5 text-[#9CA3AF]">Deadline</td>
+                  <td className="px-4 py-2.5 text-muted">Deadline</td>
                   {comparedBounties.map((b) => (
-                    <td key={b.slug} className="px-4 py-2.5 font-mono tabular-nums text-[#F3F4F6]">
+                    <td key={b.slug} className="px-4 py-2.5 font-mono tabular-nums text-ink">
                       {formatRelativeDeadline(b.deadline)} ({formatDateTime(b.deadline)})
                     </td>
                   ))}
                 </tr>
                 <tr>
-                  <td className="px-4 py-2.5 text-[#9CA3AF]">Submissions & $/Entry</td>
+                  <td className="px-4 py-2.5 text-muted">Submissions & $/Entry</td>
                   {comparedBounties.map((b) => {
                     const ratio = (b.potUsd || b.rewardAmount) / Math.max(b.submissionCount, 1);
                     return (
-                      <td key={b.slug} className="px-4 py-2.5 font-mono tabular-nums text-[#F3F4F6]">
+                      <td key={b.slug} className="px-4 py-2.5 font-mono tabular-nums text-ink">
                         {b.submissionCount} entries · {formatUsd(ratio)}/entry
                       </td>
                     );
                   })}
                 </tr>
                 <tr>
-                  <td className="px-4 py-2.5 text-[#9CA3AF]">Action</td>
+                  <td className="px-4 py-2.5 text-muted">Action</td>
                   {comparedBounties.map((b) => (
                     <td key={b.slug} className="px-4 py-2.5">
                       <Button variant="primary" size="sm" onClick={() => onInspectBounty(b.slug)}>
@@ -391,12 +397,12 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
         <Panel className={selectedSlug ? 'min-w-0 xl:col-span-7' : 'min-w-0 xl:col-span-12'}>
           <PanelHeader
             title={`Competitions (${bounties.length})`}
-            subtitle="Click any competition to inspect full official rules, deliverables, checks, and snapshots"
+            subtitle="Open a competition to see its requirements and source snapshot."
           />
           {loading ? (
             <div className="p-6 space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-12 rounded bg-white/[0.03] animate-pulse" />
+                <div key={i} className="h-12 rounded bg-hover animate-pulse" />
               ))}
             </div>
           ) : bounties.length === 0 ? (
@@ -410,114 +416,61 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
               }
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-white/[0.07] text-xs text-[#9CA3AF]">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Competition</th>
-                    <th className="px-4 py-3 font-medium text-right">Prize Pool</th>
-                    <th className="px-4 py-3 font-medium text-right">Entries</th>
-                    <th className="px-4 py-3 font-medium text-right">$/Entry</th>
-                    <th className="px-4 py-3 font-medium">Deadline</th>
-                    <th className="px-4 py-3 font-medium">Sync</th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.06]">
-                  {bounties.map((b) => {
-                    const isSelected = selectedSlug === b.slug;
-                    const isCompared = compareSlugs.includes(b.slug);
-                    const poolUsd = b.potUsd || b.rewardAmount;
-                    const ratioUsd = poolUsd / Math.max(b.submissionCount, 1);
-                    return (
-                      <tr
-                        key={b.slug}
-                        onClick={() => openBountyDetail(b.slug)}
-                        className={`cursor-pointer transition-colors ${
-                          isSelected ? 'bg-[#3B82F6]/10' : 'hover:bg-white/[0.02]'
-                        }`}
-                      >
-                        <td className="px-4 py-3 min-w-[230px]">
-                          <button
-                            type="button"
-                            className="line-clamp-1 cursor-pointer text-left font-medium text-[#F3F4F6] hover:text-blue-300 focus-visible:outline-2 focus-visible:outline-blue-400"
-                            aria-expanded={isSelected}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void openBountyDetail(b.slug);
-                            }}
-                          >
-                            {b.title}
-                          </button>
-                          <div className="text-xs text-[#9CA3AF] mt-0.5">
-                            {b.category} · {b.status}
-                            {b.skills.length > 0 ? ` · ${b.skills.slice(0, 3).join(', ')}` : ''}
-                            {b.prerequisites?.label ? ` · Prereq: ${b.prerequisites.label}` : ''}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums text-[#10B981] whitespace-nowrap">
-                          {formatUsd(poolUsd)}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums text-[#F3F4F6] whitespace-nowrap">
-                          {b.submissionCount}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums text-[#93C5FD] whitespace-nowrap">
-                          {formatUsd(ratioUsd)}
-                        </td>
-                        <td className="px-4 py-3 font-mono tabular-nums text-xs text-[#9CA3AF] whitespace-nowrap">
-                          {formatRelativeDeadline(b.deadline)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <SyncStateIndicator state={b.syncState} />
-                        </td>
-                        <td
-                          className="px-4 py-3 text-right whitespace-nowrap"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="inline-flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => toggleWatchlist(b.slug, b.watchlisted)}
-                              title="Toggle Watchlist"
-                              aria-label="Toggle Watchlist"
-                              className={`p-1.5 rounded hover:bg-white/[0.06] cursor-pointer ${
-                                b.watchlisted ? 'text-[#F59E0B]' : 'text-[#6B7280]'
-                              }`}
-                            >
-                              <Bookmark className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => toggleCompare(b.slug)}
-                              title="Add to Comparison"
-                              aria-label="Add to Comparison"
-                              className={`p-1.5 rounded hover:bg-white/[0.06] cursor-pointer ${
-                                isCompared ? 'text-[#3B82F6]' : 'text-[#6B7280]'
-                              }`}
-                            >
-                              <Columns3 className="w-3.5 h-3.5" />
-                            </button>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => onInspectBounty(b.slug)}
-                            >
-                              <ClipboardList className="w-3.5 h-3.5" />
-                              <span>Inspect</span>
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <ul className="divide-y divide-line">
+              {bounties.map(bounty => {
+                const selected = selectedSlug === bounty.slug;
+                const compared = compareSlugs.includes(bounty.slug);
+                const pool = bounty.potUsd || bounty.rewardAmount;
+                return (
+                  <li key={bounty.slug} className={`min-w-0 px-4 py-4 transition-colors sm:px-5 ${selected ? 'bg-accent-wash' : 'hover:bg-hover/60'}`}>
+                    <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                      <div className="min-w-0 flex-1 basis-52">
+                        <button type="button" aria-expanded={selected} onClick={() => openBountyDetail(bounty.slug)}
+                          className="min-h-11 cursor-pointer break-words text-left font-semibold text-ink hover:text-accent">
+                          {bounty.title}
+                        </button>
+                        <p className="break-words text-xs leading-relaxed text-muted">
+                          {bounty.category} · {bounty.status}
+                          {bounty.skills.length > 0 && ' · ' + bounty.skills.slice(0, 3).join(', ')}
+                          {bounty.prerequisites?.label && ' · ' + bounty.prerequisites.label}
+                        </p>
+                      </div>
+                      <div className="py-2"><SyncStateIndicator state={bounty.syncState} /></div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                      <dl className="flex min-w-0 flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
+                        <div><dt>Prize pool</dt><dd className="mt-0.5 font-mono font-semibold text-ink">{formatUsd(pool)}</dd></div>
+                        <div><dt>Entries</dt><dd className="mt-0.5 font-mono text-ink">{bounty.submissionCount.toLocaleString()}</dd></div>
+                        <div><dt>$/entry</dt><dd className="mt-0.5 font-mono text-ink">{formatUsd(pool / Math.max(bounty.submissionCount, 1))}</dd></div>
+                        <div><dt>Deadline</dt><dd className="mt-0.5 font-mono text-ink">{formatRelativeDeadline(bounty.deadline)}</dd></div>
+                      </dl>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Button variant="ghost" size="sm" aria-pressed={bounty.watchlisted}
+                          title={bounty.watchlisted ? 'Remove from watchlist' : 'Add to watchlist'}
+                          aria-label={(bounty.watchlisted ? 'Remove from watchlist: ' : 'Add to watchlist: ') + bounty.title}
+                          className={bounty.watchlisted ? 'size-11 px-0 text-accent' : 'size-11 px-0'} onClick={() => toggleWatchlist(bounty.slug, bounty.watchlisted)}>
+                          <Bookmark aria-hidden="true" className={bounty.watchlisted ? 'size-4 fill-current' : 'size-4'} />
+                        </Button>
+                        <Button variant="ghost" size="sm" aria-pressed={compared}
+                          title={compared ? 'Remove from comparison' : 'Add to comparison'}
+                          aria-label={(compared ? 'Remove from comparison: ' : 'Add to comparison: ') + bounty.title}
+                          className={compared ? 'size-11 px-0 bg-accent-wash text-accent' : 'size-11 px-0'} onClick={() => toggleCompare(bounty.slug)}>
+                          <Columns3 aria-hidden="true" className="size-4" />
+                        </Button>
+                        <Button variant="secondary" size="sm" aria-label={'Inspect ' + bounty.title} onClick={() => onInspectBounty(bounty.slug)}>
+                          <ClipboardList aria-hidden="true" className="size-4" /> Inspect
+                        </Button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
 
           {nextCursor && (
-            <div className="px-5 py-3.5 border-t border-white/[0.07] flex flex-wrap items-center justify-between gap-3">
-              <span className="text-xs text-[#9CA3AF]">More historical competitions available on make.fun</span>
+            <div className="px-5 py-3.5 border-t border-line flex flex-wrap items-center justify-between gap-3">
+              <span className="text-xs text-muted">More historical competitions available on make.fun</span>
               <Button variant="secondary" size="sm" onClick={handleLoadMore} disabled={loadingMore}>
                 {loadingMore ? 'Loading...' : 'Load Next Page'}
               </Button>
@@ -528,7 +481,7 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
         {/* Bounty Detail Inspector */}
         {selectedSlug && (
           <Panel ref={detailPanel} tabIndex={-1} role="region" aria-label="Bounty details"
-            className="min-w-0 xl:col-span-5 xl:sticky xl:top-6 xl:max-h-[calc(100vh-140px)] flex flex-col">
+            className="min-w-0 xl:col-span-5 xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)] flex flex-col">
             <PanelHeader
               title={detailData?.bounty.title || selectedSlug}
               subtitle={
@@ -556,18 +509,18 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
             />
 
             <div className="min-w-0 p-5 xl:overflow-y-auto space-y-5 flex-1 text-xs [overflow-wrap:anywhere]">
-              {detailError && <p role="alert" className="text-red-300">{detailError}</p>}
+              {detailError && <p role="alert" className="text-danger">{detailError}</p>}
               {detailLoading && !detailData ? (
                 <div className="space-y-3">
-                  <div className="h-20 rounded bg-white/[0.04] animate-pulse" />
-                  <div className="h-32 rounded bg-white/[0.04] animate-pulse" />
+                  <div className="h-20 rounded bg-hover animate-pulse" />
+                  <div className="h-32 rounded bg-hover animate-pulse" />
                 </div>
               ) : detailData ? (
                 <>
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/[0.07]">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-line">
                     <div className="flex items-center gap-3">
                       <SyncStateIndicator state={detailData.bounty.syncState} />
-                      <span className="text-[#9CA3AF] font-mono">
+                      <span className="text-muted font-mono">
                         Snapshot: {detailData.snapshot ? formatDateTime(detailData.snapshot.fetchedAt) : 'None'}
                       </span>
                     </div>
@@ -576,7 +529,7 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                         href={detailData.intelligence.bounty.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[#3B82F6] hover:underline"
+                        className="inline-flex items-center gap-1 text-accent hover:underline"
                       >
                         <span>Official Page</span>
                         <ExternalLink className="w-3 h-3" />
@@ -593,15 +546,15 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                   </div>
 
                   {detailData.refreshError && (
-                    <div className="rounded bg-[#EF4444]/10 border border-[#EF4444]/30 px-3 py-2 text-[#FCA5A5]">
+                    <div className="rounded bg-danger/10 border border-danger/30 px-3 py-2 text-danger">
                       Live fetch warning: {detailData.refreshError}
                     </div>
                   )}
 
                   {detailData.bounty.summary && (
                     <div>
-                      <h3 className="text-xs font-semibold text-[#F3F4F6] mb-1.5">Official Summary</h3>
-                      <p className="text-[#D1D5DB] leading-relaxed">{detailData.bounty.summary}</p>
+                      <h3 className="text-xs font-semibold text-ink mb-1.5">Official Summary</h3>
+                      <p className="text-secondary leading-relaxed">{detailData.bounty.summary}</p>
                     </div>
                   )}
 
@@ -620,31 +573,31 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                       ...mcp.map((item) => ({ kind: 'MCP', ...item })),
                     ];
                     return (
-                      <div className="rounded-md bg-[#090B0E] border border-white/[0.08] p-3.5 space-y-2">
+                      <div className="rounded-md bg-canvas border border-line p-3.5 space-y-2">
                         <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-xs font-semibold text-[#F3F4F6]">
+                          <h3 className="text-xs font-semibold text-ink">
                             Prerequisites Check{prereqs.label ? ` · ${prereqs.label}` : ''}
                           </h3>
                           {prereqs.as_of && (
-                            <span className="font-mono text-[10px] text-[#9CA3AF]">
+                            <span className="font-mono text-[10px] text-muted">
                               as of {prereqs.as_of}
                             </span>
                           )}
                         </div>
                         {prereqs.summary && (
-                          <p className="text-[#D1D5DB] leading-relaxed">{prereqs.summary}</p>
+                          <p className="text-secondary leading-relaxed">{prereqs.summary}</p>
                         )}
                         {allItems.length > 0 && (
                           <ul className="space-y-1.5 pt-1">
                             {allItems.map((item, idx) => (
-                              <li key={idx} className="text-[#D1D5DB] leading-relaxed">
-                                <span className="font-mono text-[#93C5FD]">[{item.kind}]</span>{' '}
-                                <span className="font-medium text-[#F3F4F6]">{item.name}</span>
+                              <li key={idx} className="text-secondary leading-relaxed">
+                                <span className="font-mono text-accent">[{item.kind}]</span>{' '}
+                                <span className="font-medium text-ink">{item.name}</span>
                                 {item.version ? ` (${item.version})` : ''}
                                 {item.required ? ' · Required' : ' · Optional'}
                                 {item.why ? ` — ${item.why}` : ''}
                                 {item.how_to_check && (
-                                  <div className="font-mono text-[11px] text-[#9CA3AF] mt-0.5">
+                                  <div className="font-mono text-[11px] text-muted mt-0.5">
                                     Check: {item.how_to_check}
                                   </div>
                                 )}
@@ -653,7 +606,7 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                           </ul>
                         )}
                         {prereqs.if_unmet && (
-                          <p className="text-[11px] text-[#FCD34D] pt-1">
+                          <p className="text-[11px] text-warning pt-1">
                             If unmet: {prereqs.if_unmet}
                           </p>
                         )}
@@ -662,21 +615,21 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                   })()}
 
                   {detailData.leaderboardInsights && (
-                    <div className="rounded-md bg-[#090B0E] border border-white/[0.08] p-3.5 space-y-1.5">
-                      <h3 className="text-xs font-semibold text-[#F3F4F6]">
+                    <div className="rounded-md bg-canvas border border-line p-3.5 space-y-1.5">
+                      <h3 className="text-xs font-semibold text-ink">
                         Leaderboard Snapshot ({detailData.leaderboardInsights.rankKeyTitle})
                       </h3>
-                      <p className="text-[#D1D5DB] leading-relaxed">
+                      <p className="text-secondary leading-relaxed">
                         {detailData.leaderboardInsights.gapSummary}
                       </p>
                     </div>
                   )}
 
                   <div>
-                    <h3 className="text-xs font-semibold text-[#F3F4F6] mb-1.5">
+                    <h3 className="text-xs font-semibold text-ink mb-1.5">
                       Official Prompt & Rules Snapshot
                     </h3>
-                    <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed bg-[#090B0E] border border-white/[0.07] rounded-md p-3 text-[#D1D5DB] max-h-60 overflow-y-auto">
+                    <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed bg-canvas border border-line rounded-md p-3 text-secondary max-h-60 overflow-y-auto">
                       {detailData.intelligence.officialPrompt ||
                         'Official description not returned in snapshot.'}
                     </pre>
@@ -684,13 +637,13 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
 
                   {deliverables.length > 0 && (
                     <div>
-                      <h3 className="text-xs font-semibold text-[#F3F4F6] mb-1.5">
+                      <h3 className="text-xs font-semibold text-ink mb-1.5">
                         Required Deliverables ({deliverables.length})
                       </h3>
-                      <ul className="space-y-1.5 text-[#D1D5DB]">
+                      <ul className="space-y-1.5 text-secondary">
                         {deliverables.map((d, idx) => (
                           <li key={idx} className="leading-relaxed">
-                            <span className="font-mono text-[#3B82F6]">{d.name}</span> ({d.kind}
+                            <span className="font-mono text-accent">{d.name}</span> ({d.kind}
                             {d.required ? ', required' : ''}): {d.description}
                           </li>
                         ))}
@@ -700,13 +653,13 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
 
                   {checks.length > 0 && (
                     <div>
-                      <h3 className="text-xs font-semibold text-[#F3F4F6] mb-1.5">
+                      <h3 className="text-xs font-semibold text-ink mb-1.5">
                         Intake & Gate Checks ({checks.length})
                       </h3>
-                      <ul className="space-y-1.5 text-[#9CA3AF] max-h-40 overflow-y-auto">
+                      <ul className="space-y-1.5 text-muted max-h-40 overflow-y-auto">
                         {checks.slice(0, 12).map((c, idx) => (
                           <li key={idx}>
-                            <span className="font-mono text-[#F3F4F6]">{c.check}</span>: {c.title}
+                            <span className="font-mono text-ink">{c.check}</span>: {c.title}
                           </li>
                         ))}
                       </ul>
@@ -715,8 +668,8 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
 
                   {payoutCurve.length > 0 && (
                     <div>
-                      <h3 className="text-xs font-semibold text-[#F3F4F6] mb-1.5">Payout Curve</h3>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[#D1D5DB] tabular-nums">
+                      <h3 className="text-xs font-semibold text-ink mb-1.5">Payout Curve</h3>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-secondary tabular-nums">
                         {payoutCurve.slice(0, 10).map((p, idx) => (
                           <span key={idx}>
                             #{p.place ?? idx + 1}: $
@@ -730,17 +683,17 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                     </div>
                   )}
 
-                  <div className="pt-2 border-t border-white/[0.07]">
+                  <div className="pt-2 border-t border-line">
                     <button
                       type="button"
                       onClick={() => setShowRawJson((v) => !v)}
-                      className="inline-flex items-center gap-1.5 text-xs text-[#9CA3AF] hover:text-[#F3F4F6] cursor-pointer"
+                      className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-ink cursor-pointer"
                     >
                       <Code2 className="w-3.5 h-3.5" />
                       <span>{showRawJson ? 'Hide Raw Official JSON' : 'Inspect Raw Official JSON'}</span>
                     </button>
                     {showRawJson && (
-                      <pre className="mt-2 font-mono text-[10px] bg-[#090B0E] border border-white/[0.07] rounded p-3 text-[#9CA3AF] max-h-56 overflow-auto">
+                      <pre className="mt-2 font-mono text-[10px] bg-canvas border border-line rounded p-3 text-muted max-h-56 overflow-auto">
                         {JSON.stringify(
                           {
                             sourceEndpoint: detailData.snapshot?.sourceEndpoint,

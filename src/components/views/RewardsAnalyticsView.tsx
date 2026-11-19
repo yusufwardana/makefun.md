@@ -127,12 +127,12 @@ export const RewardsAnalyticsView: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-white/[0.07]">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-line">
         <div>
-          <h1 className="text-xl font-semibold text-[#F3F4F6] tracking-tight">
+          <h1 className="text-[clamp(1.55rem,3vw,2.25rem)] font-semibold text-ink tracking-tight">
             Rewards Analytics
           </h1>
-          <p className="text-xs text-[#9CA3AF] mt-1">
+          <p className="text-xs text-muted mt-1">
             Strict separation between announced bounty pools, verified competition awards, and settled Solana USDC payouts
           </p>
         </div>
@@ -145,38 +145,38 @@ export const RewardsAnalyticsView: React.FC = () => {
       {/* 3+1 Strict Ledger Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Panel className="p-5">
-          <p className="text-xs text-[#9CA3AF]">Open Market Pools (Not Earned)</p>
-          <p className="mt-2 text-2xl font-semibold font-mono tabular-nums text-[#F3F4F6]">
+          <p className="text-xs text-muted">Open Market Pools (Not Earned)</p>
+          <p className="mt-2 text-2xl font-semibold font-mono tabular-nums text-ink">
             {formatUsd(totals.marketOpenPoolUsd)}
           </p>
-          <p className="mt-1.5 text-xs text-[#6B7280]">
+          <p className="mt-1.5 text-xs text-muted">
             Total prize pools currently open on make.fun
           </p>
         </Panel>
         <Panel className="p-5">
-          <p className="text-xs text-[#9CA3AF]">Tracked Announced Target</p>
-          <p className="mt-2 text-2xl font-semibold font-mono tabular-nums text-[#93C5FD]">
+          <p className="text-xs text-muted">Tracked Announced Target</p>
+          <p className="mt-2 text-2xl font-semibold font-mono tabular-nums text-accent">
             {formatUsd(totals.trackedAnnouncedUsd)}
           </p>
-          <p className="mt-1.5 text-xs text-[#6B7280]">
+          <p className="mt-1.5 text-xs text-muted">
             Announced prize caps for tracked entries
           </p>
         </Panel>
         <Panel className="p-5">
-          <p className="text-xs text-[#9CA3AF]">Verified Awards Won</p>
-          <p className="mt-2 text-2xl font-semibold font-mono tabular-nums text-[#F59E0B]">
+          <p className="text-xs text-muted">Verified Awards Won</p>
+          <p className="mt-2 text-2xl font-semibold font-mono tabular-nums text-warning">
             {formatUsd(totals.verifiedAwardedUsd)}
           </p>
-          <p className="mt-1.5 text-xs text-[#6B7280]">
+          <p className="mt-1.5 text-xs text-muted">
             Confirmed placements awaiting or cleared for claim
           </p>
         </Panel>
         <Panel className="p-5">
-          <p className="text-xs text-[#9CA3AF]">Actually Received USDC</p>
-          <p className="mt-2 text-2xl font-semibold font-mono tabular-nums text-[#10B981]">
+          <p className="text-xs text-muted">Actually Received USDC</p>
+          <p className="mt-2 text-2xl font-semibold font-mono tabular-nums text-success">
             {formatUsd(totals.actuallyReceivedUsd)}
           </p>
-          <p className="mt-1.5 text-xs text-[#6B7280]">
+          <p className="mt-1.5 text-xs text-muted">
             Settled in Solana wallet with verified receipt
           </p>
         </Panel>
@@ -188,7 +188,7 @@ export const RewardsAnalyticsView: React.FC = () => {
           <form onSubmit={handleSaveReward} className="p-5 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Competition</label>
+                <label className="block text-xs text-muted mb-1">Competition</label>
                 <Select value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full">
                   {bounties.map((b) => (
                     <option key={b.slug} value={b.slug}>
@@ -198,7 +198,7 @@ export const RewardsAnalyticsView: React.FC = () => {
                 </Select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Announced Prize ($)</label>
+                <label className="block text-xs text-muted mb-1">Announced Prize ($)</label>
                 <Input
                   type="number"
                   step="0.01"
@@ -207,7 +207,7 @@ export const RewardsAnalyticsView: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Verified Award ($)</label>
+                <label className="block text-xs text-muted mb-1">Verified Award ($)</label>
                 <Input
                   type="number"
                   step="0.01"
@@ -216,7 +216,7 @@ export const RewardsAnalyticsView: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Actually Received ($)</label>
+                <label className="block text-xs text-muted mb-1">Actually Received ($)</label>
                 <Input
                   type="number"
                   step="0.01"
@@ -227,7 +227,7 @@ export const RewardsAnalyticsView: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Claim Status</label>
+                <label className="block text-xs text-muted mb-1">Claim Status</label>
                 <Select
                   value={claimStatus}
                   onChange={(e) => setClaimStatus(e.target.value as ClaimStatus)}
@@ -239,7 +239,7 @@ export const RewardsAnalyticsView: React.FC = () => {
                 </Select>
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">
+                <label className="block text-xs text-muted mb-1">
                   Solana Tx Signature (Optional)
                 </label>
                 <Input
@@ -249,7 +249,7 @@ export const RewardsAnalyticsView: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs text-[#9CA3AF] mb-1">Notes</label>
+                <label className="block text-xs text-muted mb-1">Notes</label>
                 <Input
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -278,28 +278,28 @@ export const RewardsAnalyticsView: React.FC = () => {
           <div className="p-5 h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={comparisonData} layout="vertical" margin={{ left: 20, right: 20 }}>
-                <CartesianGrid stroke="rgba(255,255,255,0.06)" horizontal={false} />
+                <CartesianGrid stroke="var(--ui-line)" horizontal={false} />
                 <XAxis
                   type="number"
-                  tick={{ fill: '#9CA3AF', fontSize: 11 }}
+                  tick={{ fill: 'var(--ui-muted)', fontSize: 11 }}
                   tickFormatter={(v) => `$${v}`}
                 />
                 <YAxis
                   type="category"
                   dataKey="stage"
                   width={185}
-                  tick={{ fill: '#D1D5DB', fontSize: 11 }}
+                  tick={{ fill: 'var(--ui-secondary)', fontSize: 11 }}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#14181E',
-                    borderColor: 'rgba(255,255,255,0.12)',
+                    backgroundColor: 'var(--ui-quiet)',
+                    borderColor: 'var(--ui-line)',
                     borderRadius: '6px',
                     fontSize: '12px',
                   }}
                   formatter={(v) => [formatUsd(Number(v ?? 0)), 'USD']}
                 />
-                <Bar dataKey="amount" fill="#3B82F6" radius={[0, 4, 4, 0]} maxBarSize={26} />
+                <Bar dataKey="amount" fill="var(--ui-accent)" radius={[0, 4, 4, 0]} maxBarSize={26} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -319,20 +319,20 @@ export const RewardsAnalyticsView: React.FC = () => {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={openMarketByCategory}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                  <XAxis dataKey="category" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+                  <CartesianGrid stroke="var(--ui-line)" vertical={false} />
+                  <XAxis dataKey="category" tick={{ fill: 'var(--ui-muted)', fontSize: 11 }} />
+                  <YAxis tick={{ fill: 'var(--ui-muted)', fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#14181E',
-                      borderColor: 'rgba(255,255,255,0.12)',
+                      backgroundColor: 'var(--ui-quiet)',
+                      borderColor: 'var(--ui-line)',
                       borderRadius: '6px',
                       fontSize: '12px',
                     }}
                     formatter={(v) => [formatUsd(Number(v ?? 0)), 'Open Pool']}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px' }} />
-                  <Bar name="Open Pool (USDC)" dataKey="pool" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar name="Open Pool (USDC)" dataKey="pool" fill="var(--ui-success)" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -355,9 +355,9 @@ export const RewardsAnalyticsView: React.FC = () => {
             }
           />
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" role="region" aria-label="Rewards records table" tabIndex={0}>
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-white/[0.07] text-xs text-[#9CA3AF]">
+              <thead className="border-b border-line text-xs text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Competition</th>
                   <th className="px-4 py-3 font-medium">Claim Status</th>
@@ -368,30 +368,30 @@ export const RewardsAnalyticsView: React.FC = () => {
                   <th className="px-4 py-3 font-medium">Recorded</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.06]">
+              <tbody className="divide-y divide-line">
                 {records.map((r) => (
                   <tr key={r.id}>
-                    <td className="px-4 py-3 font-medium text-[#F3F4F6]">
+                    <td className="px-4 py-3 font-medium text-ink">
                       {r.bountyTitle || r.bountySlug}
                     </td>
-                    <td className="px-4 py-3 text-xs font-mono text-[#D1D5DB]">{r.claimStatus}</td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-[#9CA3AF]">
+                    <td className="px-4 py-3 text-xs font-mono text-secondary">{r.claimStatus}</td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-muted">
                       {formatUsd(r.announcedPrizeUsd)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-[#F59E0B]">
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-warning">
                       {formatUsd(r.verifiedAwardUsd)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-[#10B981]">
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-success">
                       {formatUsd(r.receivedUsd)}
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#9CA3AF]">
+                    <td className="px-4 py-3 text-xs text-muted">
                       {r.txSignature ? (
                         <span className="font-mono">{r.txSignature.slice(0, 14)}...</span>
                       ) : (
                         r.notes || '—'
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs font-mono tabular-nums text-[#9CA3AF]">
+                    <td className="px-4 py-3 text-xs font-mono tabular-nums text-muted">
                       {formatDateTime(r.verifiedAt)}
                     </td>
                   </tr>

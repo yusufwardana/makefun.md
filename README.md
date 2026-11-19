@@ -1,10 +1,12 @@
 # COSMICLABS Make.fun Command Center
 
-A local-first command center for discovering make.fun competitions, inspecting official requirements, handing a bounty to MUSE BOUNTY AGENT, and tracking execution evidence, submissions and rewards.
+**Bahasa Indonesia** · [English](README.en.md)
 
-## Install and run
+Gunakan dasbor lokal ini untuk mencari bounty make.fun dan memeriksa persyaratan resminya. Ekspor konteks bounty ke MUSE BOUNTY AGENT, lalu gunakan dasbor untuk melacak bukti eksekusi, submission, dan hadiah.
 
-This project uses Bun for dependency management and Node.js for the Express server and its native SQLite driver. The refactor was verified on Windows with Bun 1.4.2 and Node.js 24.22.1.
+## <img src="docs/icons/install.svg" alt="" width="20" height="20"> Instalasi dan cara menjalankan
+
+Bun mengelola dependensi. Server Express dan driver SQLite native berjalan di Node.js. Aplikasi ini diuji di Windows dengan Bun 1.4.2 dan Node.js 24.22.1.
 
 ~~~sh
 git clone https://github.com/yusufwardana/makefun.md.git
@@ -13,7 +15,9 @@ bun install --frozen-lockfile
 bun run dev
 ~~~
 
-Open [the local dashboard](http://127.0.0.1:3000). The server binds to loopback by default. Copy .env.example to .env if you need custom settings. Set COMMAND_CENTER_TOKEN to protect API mutations and Muse downloads. Enter the token in Settings for the current browser session. For remote hosting, put the whole app behind an authenticated reverse proxy since dashboard read endpoints follow the existing local access model.
+Buka [dasbor lokal](http://127.0.0.1:3000). Secara default, server hanya menerima koneksi dari mesin yang sama. Untuk mengubah konfigurasi, salin `.env.example` ke `.env`.
+
+Atur `COMMAND_CENTER_TOKEN` untuk melindungi operasi API yang mengubah data dan unduhan paket Muse. Masukkan token di **Settings** untuk sesi browser yang sedang aktif. Jika dasbor diakses dari mesin lain, lindungi seluruh aplikasi dengan reverse proxy yang mewajibkan autentikasi, termasuk untuk akses baca.
 
 ~~~powershell
 bun run lint
@@ -21,44 +25,62 @@ bun run build
 bun x --no-install tsx --test 'tests/*.test.ts'
 ~~~
 
-For production, build first and run bun run start with NODE_ENV=production. The server serves the compiled dashboard.
+Untuk produksi, jalankan build lalu jalankan `bun run start` dengan `NODE_ENV=production`. Server akan menyajikan hasil build dasbor.
 
-## From bounty discovery to reward tracking
+## <img src="docs/icons/workspace.svg" alt="" width="20" height="20"> Menyiapkan MUSE BOUNTY AGENT di Muse.ai Cloud
 
-1. Sync from **Bounty Explorer**. Search, compare, or watchlist competitions. Open a bounty's details to inspect its prerequisites and leaderboard gap.
-2. Select **Inspect requirements & export** for the official prompt, rules, deliverables, judging, payout schedule, Competition Kit manifest and public leaderboard.
-3. Under **Export to Muse**, download JSON or Markdown. Copy the bootstrap instructions to use with the package.
-4. Open your existing **MUSE BOUNTY AGENT** workspace and provide the downloaded file using the workspace's attachment or file-reading workflow. Ask Muse to read it and follow the bootstrap. Muse verifies the official specification, loads its workspace instructions and Skill Registry, and explicitly reads selected SKILL.md files. Establish official session recording before implementation whenever the specification requires it.
-5. Review the current run's evidence in **Evidence Monitor**. The nine local transcript checks are preliminary. Official validation happens at make.fun. Use **Submissions** and **Rewards Analytics** to track receipts and distinguish announced, awarded and received amounts.
+Unduh [ZIP workspace Phase 1](docs/muse-bounty-agent.zip). Arsip ini berisi panduan workspace, prompt untuk menyiapkan dan memulai sesi, delapan skill awal, serta alat pemeriksaan offline.
 
-This integration uses manual file handoff. The app reads public make.fun endpoints through GET requests and does not execute a bounty, register an entry, submit, or transact. It does not require an LLM account.
+1. Untuk workspace baru, buka **MUSE BOUNTY AGENT** di Muse.ai Cloud dan lampirkan ZIP. Minta Muse mengikuti `MUSE_APP_SETUP_PROMPT.md` di dalam arsip, lalu melaporkan lokasi workspace dan berkas yang bisa dibaca.
+2. Jika workspace sudah ada, buka workspace itu dan ikuti `AGENTS.md` serta `MUSE_START_PROMPT.md`. Gunakan berkas dan Skill Registry yang sudah ada.
+3. Untuk workspace Phase 2, cek daftar skill tambahan di registry (`react-best-practices`, `build-wiring-readback-audit`, `verify-summaries`, dan `design-system-audit`). Minta Muse membuka setiap `SKILL.md` yang relevan dan menyebutkan berkas yang benar-benar dibaca di sesi aktif.
 
-## Source freshness
+## <img src="docs/icons/handoff.svg" alt="" width="20" height="20"> Menjalankan handoff bounty
 
-| Indicator | Meaning |
+1. Jalankan sinkronisasi di **Bounty Explorer**. Cari, bandingkan, atau masukkan kompetisi ke watchlist. Buka detail bounty untuk memeriksa prasyarat dan selisih skor di leaderboard.
+2. Pilih **Inspect requirements & export** untuk melihat prompt resmi, aturan, hasil yang harus diserahkan, kriteria penilaian, jadwal pembayaran, manifest Competition Kit, dan leaderboard publik.
+3. Di **Export to Muse**, unduh JSON atau Markdown dan salin instruksi bootstrap. Lampirkan paket di workspace **MUSE BOUNTY AGENT** atau minta Muse membacanya dari berkas yang tersedia. Minta Muse mengikuti bootstrap, memakai instruksi workspace dan Skill Registry, lalu mencocokkan isi paket dengan persyaratan resmi.
+
+Untuk uji handoff, cukup minta laporan validasi, skill yang dimuat, informasi yang kurang, dan kesiapan eksekusi. Mulai build atau submission setelah mendapat persetujuan terpisah. Siapkan perekaman sesi resmi sebelum implementasi jika diwajibkan.
+
+Gunakan **Evidence Monitor** untuk memeriksa bukti dari sesi aktif. Dasbor menjalankan sembilan pemeriksaan awal terhadap transkrip. make.fun menangani validasi resmi. Gunakan **Submissions** untuk melacak bukti penerimaan dan **Rewards Analytics** untuk melihat hadiah yang diumumkan, diberikan, dan diterima.
+
+Dasbor mengambil data dengan permintaan GET ke endpoint publik make.fun. Build, pendaftaran, submission, dan transaksi berlangsung di luar dasbor. Kamu bisa menjalankan Command Center tanpa akun LLM.
+
+## <img src="docs/icons/freshness.svg" alt="" width="20" height="20"> Status sumber data
+
+| Indikator | Arti |
 | --- | --- |
-| LIVE | The official detail snapshot includes a verbatim prompt and matching requirements and is at most six hours old. |
-| STALE | The official detail snapshot includes the prompt and matching requirements but is older than six hours. |
-| OFFLINE | The most recent sync marked the bounty offline. Any cached official data remains available. |
-| UNVERIFIED | The details, prompt, matching requirements, or valid timestamp are incomplete. |
+| LIVE | Snapshot detail resmi berisi prompt asli dan persyaratan yang cocok, serta berumur paling lama enam jam. |
+| STALE | Snapshot detail resmi berisi prompt dan persyaratan yang cocok, tetapi umurnya lebih dari enam jam. |
+| OFFLINE | Sinkronisasi terakhir menandai bounty sebagai offline. Data resmi yang tersimpan di cache tetap bisa dilihat. |
+| UNVERIFIED | Detail, prompt, persyaratan yang cocok, atau waktu pengambilan yang valid belum lengkap. |
 
-The intelligence view shows the source and cached snapshot timestamp separately from the bounty record's last sync. A fresh core snapshot can still lack a kit manifest or leaderboard. Missing values are listed so Muse can verify them on the official page. The existing prerequisite checker and tracked-account leaderboard comparison remain available in Explorer.
+Di Bounty Intelligence, lihat sumber, waktu pengambilan snapshot, dan waktu sinkronisasi terakhir bounty. Snapshot baru bisa saja belum memuat manifest kit atau leaderboard. Dasbor menandai data yang belum tersedia agar Muse bisa memeriksanya di halaman resmi. Untuk memeriksa prasyarat atau membandingkan akun yang dipantau dengan leaderboard, gunakan Explorer.
 
-## Muse package contract
+## <img src="docs/icons/package-schema.svg" alt="" width="20" height="20"> Kontrak paket Muse
 
-- [JSON Schema v1.0.0](docs/muse-execution-package.schema.json) and [synthetic JSON example](docs/muse-execution-package.example.json)
-- [MUSE_BOUNTY_CONTEXT.md example and bootstrap](docs/MUSE_BOUNTY_CONTEXT.md)
+- [JSON Schema v1.0.0](docs/muse-execution-package.schema.json) dan [contoh JSON sintetis](docs/muse-execution-package.example.json)
+- [Contoh MUSE_BOUNTY_CONTEXT.md dan bootstrap](docs/MUSE_BOUNTY_CONTEXT.md)
 
-Each JSON export is validated on the server against the schema. It includes selected fields from the public competition, requirements, kit and leaderboard snapshots. The official prompt is the original description string, including whitespace. Null means the field was unavailable. An empty list means a list was present with no usable entries. Manual prompt overrides, operator notes, prior analyses, evidence, credentials and private settings stay outside the package. Official check applicability is true, false or null when unspecified. Review unavailable or unclear requirements in Muse before execution.
+Server memvalidasi setiap ekspor JSON terhadap skema. Paket memuat data terpilih dari snapshot kompetisi, persyaratan, kit, dan leaderboard publik. Server menyalin deskripsi resmi sebagai prompt, termasuk spasi dan baris baru. Override prompt manual, catatan operator, analisis lama, bukti, kredensial, dan pengaturan privat tetap di luar paket.
 
-createdAt is the official snapshot fetch time and is null for a package without a trusted snapshot. The snapshot ID hashes the matching raw official source objects and the competition source URL. The package ID and content checksum hash the exported context, source URLs and missing-field labels. Both hashes use compact UTF-8 JSON with recursively sorted object keys and original array order, using JavaScript number and string serialization. The package hash excludes timestamps and freshness status. Its input contains the top-level fields from bounty through submissionRequirements, the four URL fields from sourceProvenance at the top level and missingInformation. The checksum can verify package content. Official acceptance is verified by make.fun.
+Nilai `null` berarti data belum tersedia. Daftar kosong berarti sumber menyediakan daftar tanpa entri yang bisa dipakai. Untuk pemeriksaan resmi, `true` berarti berlaku, `false` berarti tidak berlaku, dan `null` berarti sumber tidak menyebutkannya. Periksa kembali persyaratan yang belum jelas di Muse sebelum eksekusi.
 
-The read-only download endpoint is GET /api/bounties/:slug/muse-export with format=json or format=markdown. An optional checksum from the inspected detail returns HTTP 409 if the selected content changed before download. The endpoint reads the local SQLite snapshot and serves fixed attachment filenames. Refresh in the UI to fetch a newer source. Source links are constrained to the official make.fun origin, and exported text is rendered as data. Markdown fences keep external markup inert when rendered.
+`createdAt` menyimpan waktu pengambilan snapshot resmi dan bernilai `null` jika snapshot tepercaya belum tersedia. Server menghitung ID snapshot dari objek mentah sumber resmi yang cocok dan URL sumber kompetisi.
 
-## SQLite data
+ID paket dan checksum memakai hash yang sama. Inputnya mencakup field tingkat atas dari `bounty` hingga `submissionRequirements`, empat URL dari `sourceProvenance` yang disalin ke tingkat atas, dan `missingInformation`. Waktu dan status kesegaran berada di luar input hash paket. Untuk kedua hash, server memakai JSON UTF-8 ringkas, mengurutkan key objek secara rekursif, mempertahankan urutan array, dan memakai serialisasi angka serta string JavaScript. Gunakan checksum untuk memeriksa isi paket. make.fun memverifikasi penerimaan resmi.
 
-The default database is data/cosmiclabs.db. Use COSMICLABS_DB_PATH to select an existing database or a separate test file. The app preserves the existing SQLite schema and archives ai_analyses, prompt_drafts, prompt_versions, legacy prompt overrides and prior provider settings in place. Evidence keeps the historical hermes_evidence table name. Existing .env files are preserved. Legacy provider settings and secrets are no longer loaded by an enhancement workflow.
+Unduh paket melalui `GET /api/bounties/:slug/muse-export` dengan `format=json` atau `format=markdown`. Endpoint hanya membaca snapshot dari SQLite lokal dan mengirim lampiran dengan nama berkas tetap. Jika permintaan menyertakan checksum opsional dari tampilan detail dan konten sudah berubah, server mengembalikan HTTP 409. Gunakan refresh untuk mengambil sumber terbaru.
 
-Evidence scanning only reads permitted directories inside the resolved workspace. Confirm that any imported file belongs to the current bounty and session before using it. Read-only local checks cannot establish official provenance or verify acceptance.
+Server membatasi tautan sumber ke origin resmi make.fun. Pagar kode dalam ekspor Markdown membuat markup eksternal tampil sebagai teks.
 
-[Audit, file-by-file changes and QA](docs/REFRACTOR_QA.md)
+## <img src="docs/icons/database.svg" alt="" width="20" height="20"> Data SQLite
+
+Database default ada di `data/cosmiclabs.db`. Atur `COSMICLABS_DB_PATH` untuk memilih database yang sudah ada atau memakai berkas uji terpisah. Aplikasi mempertahankan skema SQLite dan menyimpan arsip `ai_analyses`, `prompt_drafts`, `prompt_versions`, override prompt lama, dan pengaturan provider lama di tempatnya. Bukti tetap memakai tabel `hermes_evidence`.
+
+Aplikasi mempertahankan berkas `.env` yang sudah ada. Setelah alur enhancement dihapus, aplikasi berhenti memuat pengaturan dan rahasia provider lama dari alur tersebut.
+
+Pemindaian bukti hanya membaca direktori yang diizinkan di dalam workspace. Pastikan berkas yang diimpor berasal dari bounty dan sesi yang sedang dikerjakan. Penentuan asal-usul bukti dan penerimaan resmi dilakukan oleh make.fun.
+
+[Audit, daftar perubahan, dan laporan QA](docs/REFRACTOR_QA.md)

@@ -48,10 +48,10 @@ export function SettingsView({ settings, onSettingsSaved }: SettingsViewProps) {
   return (
     <div className="max-w-2xl space-y-5">
       <div>
-        <h1 className="text-xl font-semibold">Settings</h1>
-        <p className="mt-1 text-sm text-[#9CA3AF]">Manage the tracked make.fun account and local evidence sources.</p>
+        <h1 className="text-[clamp(1.55rem,3vw,2.25rem)] font-semibold">Settings</h1>
+        <p className="mt-1 text-sm text-muted">Manage the tracked make.fun account and local evidence sources.</p>
       </div>
-      {!settings && <p role="status" className="text-sm text-[#D1D5DB]">Settings are currently unavailable.</p>}
+      {!settings && <p role="status" className="text-sm text-secondary">Settings are currently unavailable.</p>}
       {settings?.authRequired && <Panel>
         <PanelHeader title="Operator access" />
         <div className="space-y-2 p-4">
@@ -62,7 +62,7 @@ export function SettingsView({ settings, onSettingsSaved }: SettingsViewProps) {
               sessionStorage.setItem('cosmiclabs_op_token', event.target.value);
             }} />
           </label>
-          <p className="text-sm text-[#9CA3AF]">Used for changes and Muse downloads during this browser session.</p>
+          <p className="text-sm text-muted">Used for changes and Muse downloads during this browser session.</p>
         </div>
       </Panel>}
       {settings && <Panel>
@@ -76,9 +76,9 @@ export function SettingsView({ settings, onSettingsSaved }: SettingsViewProps) {
             <span>Permitted evidence directories</span>
             <Textarea className="w-full" rows={4} value={paths} onChange={event => setPaths(event.target.value)} />
           </label>
-          <p className="text-sm text-[#9CA3AF]">Enter one workspace directory per line. Evidence Monitor scans these directories on demand.</p>
+          <p className="text-sm text-muted">Enter one workspace directory per line. Evidence Monitor scans these directories on demand.</p>
           <Button variant="primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save settings'}</Button>
-          {status && <p className="text-sm text-[#D1D5DB]" role="status">{status}</p>}
+          {status && <p className="text-sm text-secondary" role="status">{status}</p>}
         </form>
       </Panel>}
     </div>

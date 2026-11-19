@@ -17,25 +17,25 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   const variants = {
     primary:
-      'bg-[#3B82F6] text-white hover:bg-[#2563EB] border border-transparent shadow-sm disabled:opacity-50',
+      'bg-accent text-accent-ink hover:bg-accent-hover border border-transparent disabled:opacity-50',
     secondary:
-      'bg-[#14181E] text-[#F3F4F6] hover:bg-[#1C212A] border border-white/[0.1] disabled:opacity-50',
+      'bg-surface text-ink hover:bg-hover border border-control disabled:opacity-50',
     ghost:
-      'bg-transparent text-[#9CA3AF] hover:text-[#F3F4F6] hover:bg-white/[0.05] border border-transparent disabled:opacity-50',
+      'bg-transparent text-muted hover:text-ink hover:bg-hover border border-transparent disabled:opacity-50',
     danger:
-      'bg-[#EF4444]/15 text-[#FCA5A5] hover:bg-[#EF4444]/25 border border-[#EF4444]/30 disabled:opacity-50',
+      'bg-danger/15 text-danger hover:bg-danger/25 border border-danger/30 disabled:opacity-50',
   };
 
   const sizes = {
-    sm: 'h-8 px-3 text-xs gap-1.5',
-    md: 'h-9 px-4 text-sm gap-2',
+    sm: 'min-h-11 sm:min-h-9 px-3 text-xs gap-1.5',
+    md: 'min-h-11 px-4 text-sm gap-2',
   };
 
   return (
     <button
       type={type}
       className={cn(
-        'inline-flex items-center justify-center rounded-md font-medium transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6] focus-visible:ring-offset-2 focus-visible:ring-offset-[#090B0E] disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center rounded-lg font-medium transition duration-180 active:translate-y-px whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:cursor-not-allowed',
         variants[variant],
         sizes[size],
         className
@@ -51,7 +51,7 @@ export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({
 }) => (
   <input
     className={cn(
-      'h-9 w-full rounded-md bg-[#0D1015] border border-white/[0.1] px-3 text-sm text-[#F3F4F6] placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/60 focus:border-[#3B82F6] transition-colors',
+      'min-h-11 w-full rounded-lg bg-field border border-control px-3 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/60 focus:border-accent transition-colors',
       className
     )}
     {...props}
@@ -64,7 +64,7 @@ export const Textarea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement
 }) => (
   <textarea
     className={cn(
-      'w-full rounded-md bg-[#0D1015] border border-white/[0.1] p-3 text-sm text-[#F3F4F6] placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/60 focus:border-[#3B82F6] transition-colors leading-relaxed',
+      'w-full rounded-lg bg-field border border-control p-3 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/60 focus:border-accent transition-colors leading-relaxed',
       className
     )}
     {...props}
@@ -77,7 +77,7 @@ export const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement>> = (
 }) => (
   <select
     className={cn(
-      'h-9 rounded-md bg-[#0D1015] border border-white/[0.1] px-3 text-sm text-[#F3F4F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/60 focus:border-[#3B82F6] transition-colors',
+      'min-h-11 rounded-lg bg-field border border-control px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/60 focus:border-accent transition-colors',
       className
     )}
     {...props}
@@ -88,7 +88,7 @@ export const Panel: React.FC<React.ComponentPropsWithRef<'div'>> = ({ children, 
   <div
     {...props}
     className={cn(
-      'rounded-lg bg-[#0F1216] border border-white/[0.08]',
+      'rounded-xl bg-surface border border-line',
       className
     )}
   >
@@ -104,15 +104,15 @@ export const PanelHeader: React.FC<{
 }> = ({ title, subtitle, actions, className }) => (
   <div
     className={cn(
-      'flex flex-wrap items-center justify-between gap-4 px-5 py-4 border-b border-white/[0.07]',
+      'flex flex-wrap items-center justify-between gap-4 px-5 py-4 border-b border-line',
       className
     )}
   >
     <div className="min-w-0">
-      <h2 className="text-sm font-semibold text-[#F3F4F6] tracking-tight">{title}</h2>
-      {subtitle && <p className="text-xs text-[#9CA3AF] mt-0.5">{subtitle}</p>}
+      <h2 className="text-base font-semibold text-ink tracking-tight">{title}</h2>
+      {subtitle && <p className="text-xs text-muted mt-0.5">{subtitle}</p>}
     </div>
-    {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+    {actions && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">{actions}</div>}
   </div>
 );
 
@@ -123,22 +123,22 @@ export const SyncStateIndicator: React.FC<{ state: SyncState }> = ({ state }) =>
   > = {
     LIVE: {
       label: 'LIVE',
-      colorClass: 'text-[#10B981]',
+      colorClass: 'text-success',
       Icon: CheckCircle2,
     },
     STALE: {
       label: 'STALE',
-      colorClass: 'text-[#F59E0B]',
+      colorClass: 'text-warning',
       Icon: AlertTriangle,
     },
     OFFLINE: {
       label: 'OFFLINE',
-      colorClass: 'text-[#EF4444]',
+      colorClass: 'text-danger',
       Icon: WifiOff,
     },
     UNVERIFIED: {
       label: 'UNVERIFIED',
-      colorClass: 'text-[#9CA3AF]',
+      colorClass: 'text-muted',
       Icon: HelpCircle,
     },
   };
@@ -158,8 +158,8 @@ export const EmptyState: React.FC<{
   action?: React.ReactNode;
 }> = ({ title, description, action }) => (
   <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-    <p className="text-sm font-medium text-[#F3F4F6]">{title}</p>
-    <p className="text-xs text-[#9CA3AF] mt-1.5 max-w-md leading-relaxed">{description}</p>
+    <p className="text-sm font-medium text-ink">{title}</p>
+    <p className="text-xs text-muted mt-1.5 max-w-md leading-relaxed">{description}</p>
     {action && <div className="mt-4">{action}</div>}
   </div>
 );

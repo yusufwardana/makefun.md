@@ -17,15 +17,15 @@ const freshness = {
 
 function Section({ title, children, open = false }: { title: string; children: ReactNode; open?: boolean }) {
   return (
-    <details open={open || undefined} className="rounded-lg border border-white/10 bg-[#0F1216]">
-      <summary className="cursor-pointer rounded-lg px-4 py-3 text-sm font-semibold text-[#F3F4F6] focus-visible:outline-2 focus-visible:outline-blue-400">{title}</summary>
-      <div className="min-w-0 space-y-3 border-t border-white/10 p-4 text-sm text-[#D1D5DB] [overflow-wrap:anywhere]">{children}</div>
+    <details open={open || undefined} className="rounded-lg border border-line bg-surface">
+      <summary className="cursor-pointer rounded-lg px-4 py-3 text-sm font-semibold text-ink focus-visible:outline-2 focus-visible:outline-accent">{title}</summary>
+      <div className="min-w-0 space-y-3 border-t border-line p-4 text-sm text-secondary [overflow-wrap:anywhere]">{children}</div>
     </details>
   );
 }
 
 function OfficialLink({ url, children }: { url: string; children: ReactNode }) {
-  return <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-300 underline underline-offset-4">
+  return <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent underline underline-offset-4">
     {children}<ExternalLink className="size-3 shrink-0" aria-hidden="true" />
   </a>;
 }
@@ -33,9 +33,9 @@ function OfficialLink({ url, children }: { url: string; children: ReactNode }) {
 function CheckList({ checks }: { checks: MusePackage['recordingRequirements'] }) {
   if (!checks) return <p>{unavailable}.</p>;
   if (!checks.length) return <p>No matching checks listed in this snapshot.</p>;
-  return <ul className="divide-y divide-white/10">
+  return <ul className="divide-y divide-line">
     {checks.map((check, index) => <li key={index} className="py-2">
-      <p className="font-medium">{check.title || check.check} <span className="text-xs text-[#9CA3AF]">
+      <p className="font-medium">{check.title || check.check} <span className="text-xs text-muted">
         · {check.applies === true ? 'Applies' : check.applies === false ? 'Marked not applicable' : 'Applicability unspecified'}
         {check.phase && ' · ' + check.phase}</span></p>
       {check.description && <p className="whitespace-pre-wrap">{check.description}</p>}
@@ -174,11 +174,11 @@ export function BountyIntelligenceView({ initialSlug, onSelect, onBack, onEviden
 
   return (
     <div className="min-w-0 space-y-5">
-      <header className="space-y-3 border-b border-white/10 pb-4">
+      <header className="space-y-3 border-b border-line pb-4">
         <Button variant="ghost" size="sm" onClick={onBack}>Back to Bounty Explorer</Button>
-        <h1 className="text-xl font-semibold text-[#F3F4F6]">Bounty Intelligence &amp; Muse Handoff</h1>
+        <h1 className="text-[clamp(1.55rem,3vw,2.25rem)] font-semibold text-ink">Bounty Intelligence &amp; Muse Handoff</h1>
         <div className="flex flex-wrap items-end gap-2">
-          <label className="w-full max-w-lg space-y-1 text-sm text-[#D1D5DB]">
+          <label className="w-full max-w-lg space-y-1 text-sm text-secondary">
             <span>Competition</span>
             <Select className="w-full" value={initialSlug ?? ''} disabled={exporting || saving}
               onChange={event => { setRefresh(0); onSelect(event.target.value); }}>
@@ -190,10 +190,10 @@ export function BountyIntelligenceView({ initialSlug, onSelect, onBack, onEviden
             <RefreshCw className="size-4" aria-hidden="true" /> Refresh official details
           </Button>
         </div>
-        {listError && <p className="text-sm text-amber-200" role="status">{listError}</p>}
-        {detailError && <p className="text-sm text-red-300" role="alert">{detailError}</p>}
-        {loading && <p className="text-sm text-[#D1D5DB]" role="status">Loading official details…</p>}
-        {!initialSlug && !listLoading && <p className="text-sm text-[#D1D5DB]">
+        {listError && <p className="text-sm text-warning" role="status">{listError}</p>}
+        {detailError && <p className="text-sm text-danger" role="alert">{detailError}</p>}
+        {loading && <p className="text-sm text-secondary" role="status">Loading official details…</p>}
+        {!initialSlug && !listLoading && <p className="text-sm text-secondary">
           {choices.length ? 'Select a competition to inspect its requirements.' : 'Sync competitions from Bounty Explorer to get started.'}
         </p>}
       </header>
@@ -208,16 +208,16 @@ export function BountyIntelligenceView({ initialSlug, onSelect, onBack, onEviden
               </div>
               <SyncStateIndicator state={provenance.status} />
             </div>
-            <dl className="grid grid-cols-2 gap-3 border-y border-white/10 py-3 text-sm sm:grid-cols-4">
+            <dl className="grid grid-cols-2 gap-3 border-y border-line py-3 text-sm sm:grid-cols-4">
               {[
                 ['Status', pkg.bounty.status ?? unavailable],
                 ['Entry deadline', pkg.bounty.deadline ? formatDateTime(pkg.bounty.deadline) : unavailable],
                 ['Prize pool', pkg.bounty.prizePoolUsd === null ? unavailable : formatUsd(Number(pkg.bounty.prizePoolUsd))],
                 ['Submissions', pkg.bounty.submissionCount ?? unavailable],
-              ].map(([label, value]) => <div key={label}><dt className="text-[#9CA3AF]">{label}</dt><dd className="font-medium">{value}</dd></div>)}
+              ].map(([label, value]) => <div key={label}><dt className="text-muted">{label}</dt><dd className="font-medium">{value}</dd></div>)}
             </dl>
-            <p className="text-sm text-[#D1D5DB]">{freshness[provenance.status]}</p>
-            {selected.refreshError && <p className="text-sm text-amber-200" role="status">{selected.refreshError}</p>}
+            <p className="text-sm text-secondary">{freshness[provenance.status]}</p>
+            {selected.refreshError && <p className="text-sm text-warning" role="status">{selected.refreshError}</p>}
           </Panel>
 
           <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,25rem)]">
@@ -232,7 +232,7 @@ export function BountyIntelligenceView({ initialSlug, onSelect, onBack, onEviden
                 <CheckList checks={pkg.officialRequirements?.checks ?? null} />
               </Section>
               <Section title="Deliverables and submission requirements">
-                {pkg.deliverables ? <ul className="divide-y divide-white/10">{pkg.deliverables.map((item, index) =>
+                {pkg.deliverables ? <ul className="divide-y divide-line">{pkg.deliverables.map((item, index) =>
                   <li key={index} className="py-2">
                     <span className="font-medium">{item.name}</span> · {item.required === true ? 'Required' : item.required === false ? 'Optional' : 'Requirement unspecified'}
                     {item.description && <p className="whitespace-pre-wrap">{item.description}</p>}
@@ -299,16 +299,16 @@ export function BountyIntelligenceView({ initialSlug, onSelect, onBack, onEviden
             <aside className="min-w-0 space-y-3">
               <Panel className="space-y-3 p-4">
                 <h2 className="text-sm font-semibold">Export to Muse</h2>
-                <p className="text-sm text-[#D1D5DB]">Download the package and provide it to your existing MUSE BOUNTY AGENT workspace for verification.</p>
+                <p className="text-sm text-secondary">Download the package and provide it to your existing MUSE BOUNTY AGENT workspace for verification.</p>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="primary" size="sm" className="bg-blue-700 hover:bg-blue-800" disabled={exporting || loading} onClick={() => download('json')}>
+                  <Button variant="primary" size="sm" className="bg-accent hover:bg-accent-hover" disabled={exporting || loading} onClick={() => download('json')}>
                     <Download className="size-3.5" aria-hidden="true" /> Download JSON
                   </Button>
                   <Button variant="secondary" size="sm" disabled={exporting || loading} onClick={() => download('markdown')}>Download Markdown</Button>
                   <Button variant="ghost" size="sm" onClick={copyBootstrap}>Copy Muse Bootstrap Instructions</Button>
                 </div>
-                <p className="text-sm text-[#D1D5DB]" role="status">{exportStatus}</p>
-                <details className="text-sm text-[#D1D5DB]">
+                <p className="text-sm text-secondary" role="status">{exportStatus}</p>
+                <details className="text-sm text-secondary">
                   <summary className="cursor-pointer">View bootstrap instructions</summary>
                   <p className="mt-2 whitespace-pre-wrap">{museBootstrap}</p>
                 </details>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Activity,
   Award,
@@ -7,6 +7,8 @@ import {
   FileCheck2,
   LayoutDashboard,
   Menu,
+  Moon,
+  Sun,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -31,24 +33,77 @@ type NavId =
   | 'rewards'
   | 'settings';
 
-const NAV_ITEMS: Array<{
-  id: NavId;
+const NAV_GROUPS: Array<{
   label: string;
-  Icon: React.ComponentType<{ className?: string }>;
+  items: Array<{ id: NavId; label: string; Icon: React.ComponentType<{ className?: string }> }>;
 }> = [
-  { id: 'overview', label: 'Overview', Icon: LayoutDashboard },
-  { id: 'explorer', label: 'Bounty Explorer', Icon: Compass },
-  { id: 'intelligence', label: 'Bounty Intelligence', Icon: ClipboardList },
-  { id: 'monitor', label: 'Evidence Monitor', Icon: Activity },
-  { id: 'submissions', label: 'Submissions', Icon: FileCheck2 },
-  { id: 'rewards', label: 'Rewards Analytics', Icon: Award },
-  { id: 'settings', label: 'Settings', Icon: Settings },
+  { label: 'Workspace', items: [
+    { id: 'overview', label: 'Overview', Icon: LayoutDashboard },
+    { id: 'explorer', label: 'Bounty Explorer', Icon: Compass },
+    { id: 'intelligence', label: 'Bounty Intelligence', Icon: ClipboardList },
+  ] },
+  { label: 'Tracking', items: [
+    { id: 'monitor', label: 'Evidence Monitor', Icon: Activity },
+    { id: 'submissions', label: 'Submissions', Icon: FileCheck2 },
+    { id: 'rewards', label: 'Rewards Analytics', Icon: Award },
+  ] },
+  { label: 'Configuration', items: [
+    { id: 'settings', label: 'Settings', Icon: Settings },
+  ] },
 ];
+
+const iconButton = 'inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-hover hover:text-ink';
+
+function Navigation({ active, collapsed = false, onNavigate }: {
+  active: NavId;
+  collapsed?: boolean;
+  onNavigate: (id: NavId) => void;
+}) {
+  return (
+    <nav aria-label="Main navigation" className="space-y-6 px-3 py-5">
+      {NAV_GROUPS.map(({ label, items }) => (
+        <div key={label} role="group" aria-label={label} className="space-y-1">
+          {!collapsed && <p className="px-3 pb-1 text-xs font-medium text-muted">{label}</p>}
+          {items.map(({ id, label: itemLabel, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              aria-label={itemLabel}
+              aria-current={active === id ? 'page' : undefined}
+              title={collapsed ? itemLabel : undefined}
+              onClick={() => onNavigate(id)}
+              className={`relative flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-lg text-left text-[13px] transition-colors ${collapsed ? 'justify-center' : 'px-3'} ${active === id ? 'bg-accent-wash font-semibold text-accent before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-full before:bg-accent' : 'font-medium text-muted hover:bg-hover hover:text-ink'}`}
+            >
+              <Icon className="size-[17px] shrink-0" />
+              {!collapsed && <span>{itemLabel}</span>}
+            </button>
+          ))}
+        </div>
+      ))}
+    </nav>
+  );
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavId>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenu = useRef<HTMLDialogElement>(null);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  );
+  const [explorerStart, setExplorerStart] = useState({ query: '', watchlist: false });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    try { localStorage.setItem('makefun-theme', theme); } catch {}
+  }, [theme]);
+
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 64rem)');
+    const closeDrawer = () => { if (desktop.matches) mobileMenu.current?.close(); };
+    desktop.addEventListener('change', closeDrawer);
+    return () => desktop.removeEventListener('change', closeDrawer);
+  }, []);
 
   const [intelligenceSlug, setIntelligenceSlug] = useState<string | null>(null);
   const [overviewData, setOverviewData] = useState<OverviewData | null>(null);
@@ -97,143 +152,81 @@ export default function App() {
     }
   };
 
-  const inspectBounty = (slug: string) => {
-    if (slug) setIntelligenceSlug(slug);
-    setActiveTab('intelligence');
-    setMobileMenuOpen(false);
+  const navigate = (tab: NavId) => {
+    setActiveTab(tab);
+    mobileMenu.current?.close();
   };
 
-  const activeNavLabel = NAV_ITEMS.find((n) => n.id === activeTab)?.label || 'Overview';
+  const openExplorer = (query = '', watchlist = false) => {
+    setExplorerStart({ query, watchlist });
+    navigate('explorer');
+  };
+
+  const inspectBounty = (slug: string) => {
+    if (slug) setIntelligenceSlug(slug);
+    navigate('intelligence');
+  };
+
+  const activeNavLabel = NAV_GROUPS.flatMap(group => group.items).find(item => item.id === activeTab)?.label;
+  const ThemeIcon = theme === 'dark' ? Sun : Moon;
 
   return (
-    <div className="min-h-screen bg-[#090B0E] text-[#F3F4F6] flex">
-      {/* Desktop Collapsible Sidebar */}
-      <aside
-        className={`hidden lg:flex flex-col border-r border-white/[0.08] bg-[#0B0D11] transition-all duration-200 shrink-0 ${
-          sidebarCollapsed ? 'w-16' : 'w-60'
-        }`}
-      >
-        <div className="h-14 px-4 border-b border-white/[0.08] flex items-center justify-between gap-2">
-          {!sidebarCollapsed && (
-            <span className="font-display font-semibold text-sm tracking-tight text-[#F3F4F6] whitespace-nowrap truncate">
-              COSMICLABS
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => setSidebarCollapsed((v) => !v)}
-            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="p-1.5 rounded-md text-[#9CA3AF] hover:text-[#F3F4F6] hover:bg-white/[0.05] cursor-pointer"
-          >
-            {sidebarCollapsed ? (
-              <PanelLeftOpen className="w-4 h-4" />
-            ) : (
-              <PanelLeftClose className="w-4 h-4" />
-            )}
-          </button>
-        </div>
-
-        <nav className="flex-1 p-2.5 space-y-1">
-          {NAV_ITEMS.map(({ id, label, Icon }) => {
-            const active = activeTab === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setActiveTab(id)}
-                title={sidebarCollapsed ? label : undefined}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
-                  active
-                    ? 'bg-[#14181E] text-[#F3F4F6] border border-white/[0.08]'
-                    : 'text-[#9CA3AF] hover:text-[#F3F4F6] hover:bg-white/[0.04] border border-transparent'
-                }`}
-              >
-                <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[#3B82F6]' : ''}`} />
-                {!sidebarCollapsed && <span className="truncate">{label}</span>}
-              </button>
-            );
-          })}
-        </nav>
-
-        {!sidebarCollapsed && (
-          <div className="p-4 border-t border-white/[0.07] text-[11px] text-[#6B7280] space-y-1">
-            <div className="text-[#9CA3AF] font-medium">make.fun Command Center</div>
-            <div>Account: {settings?.accountHandle || '@0xkeinara'}</div>
-            <div>Mode: Read-Only · Local SQLite</div>
-          </div>
-        )}
-      </aside>
-
-      {/* Mobile Drawer Overlay */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex" onKeyDown={event => { if (event.key === 'Escape') setMobileMenuOpen(false); }}>
-          <div
-            className="fixed inset-0 bg-black/70"
-            onClick={() => setMobileMenuOpen(false)}
-            aria-hidden="true"
-          />
-          <aside className="relative z-10 w-64 bg-[#0B0D11] border-r border-white/[0.08] flex flex-col h-full">
-            <div className="h-14 px-4 border-b border-white/[0.08] flex items-center justify-between">
-              <span className="font-display font-semibold text-sm text-[#F3F4F6]">COSMICLABS</span>
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-1.5 text-[#9CA3AF] hover:text-[#F3F4F6]"
-                aria-label="Close navigation"
-                autoFocus
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <nav className="flex-1 p-3 space-y-1">
-              {NAV_ITEMS.map(({ id, label, Icon }) => {
-                const active = activeTab === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-xs font-medium cursor-pointer ${
-                      active
-                        ? 'bg-[#14181E] text-[#F3F4F6] border border-white/[0.08]'
-                        : 'text-[#9CA3AF] hover:text-[#F3F4F6]'
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[#3B82F6]' : ''}`} />
-                    <span>{label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </aside>
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 px-5 border-b border-white/[0.08] bg-[#0B0D11] flex items-center justify-between gap-4 shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-1.5 rounded-md text-[#9CA3AF] hover:text-[#F3F4F6]"
-              aria-label="Open navigation"
-            >
-              <Menu className="w-5 h-5" />
+    <div className="min-h-dvh bg-canvas text-ink">
+      <header className="sticky top-0 z-30 border-b border-line bg-surface">
+        <div className="flex min-h-16 min-w-0 items-center justify-between gap-3 px-4 lg:px-6">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <button type="button" className={iconButton + ' lg:hidden'} aria-label="Open navigation"
+              aria-haspopup="dialog" onClick={() => mobileMenu.current?.showModal()}>
+              <Menu className="size-5" />
             </button>
-            <div className="flex min-w-0 items-center gap-2 text-xs whitespace-nowrap">
-              <span className="text-[#6B7280]">COSMICLABS</span>
-              <span className="text-[#4B5563]">/</span>
-              <span className="truncate text-[#F3F4F6] font-medium">{activeNavLabel}</span>
-            </div>
+            <button type="button" className="flex min-h-11 cursor-pointer items-center gap-2 font-semibold tracking-tight"
+              onClick={() => navigate('overview')} aria-label="Make.fun overview">
+              <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-quiet">
+                <Compass className="size-[18px] text-accent" aria-hidden="true" />
+              </span>
+              <span>Make.fun</span>
+            </button>
+            <span className="hidden border-l border-line pl-3 text-sm text-muted sm:block">{activeNavLabel}</span>
           </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="hidden font-mono text-xs text-muted md:block">{settings?.accountHandle}</span>
+            <button type="button" className={iconButton} aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+              <ThemeIcon className="size-[19px]" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      </header>
 
-        </header>
+      <dialog ref={mobileMenu} aria-labelledby="navigation-title"
+        className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-[min(20rem,90vw)] max-w-none border-r border-line bg-surface p-0 text-ink"
+        onClick={event => { if (event.target === event.currentTarget) mobileMenu.current?.close(); }}>
+        <div className="min-h-full">
+          <div className="flex min-h-16 items-center justify-between border-b border-line px-4">
+            <h2 id="navigation-title" className="font-semibold">Make.fun</h2>
+            <button type="button" className={iconButton} aria-label="Close navigation" autoFocus
+              onClick={() => mobileMenu.current?.close()}>
+              <X className="size-5" />
+            </button>
+          </div>
+          <Navigation active={activeTab} onNavigate={navigate} />
+        </div>
+      </dialog>
 
-        <main className="flex-1 p-5 lg:p-6 max-w-[1440px] w-full mx-auto">
+      <div className="flex items-start">
+        <aside className={`sticky top-16 hidden max-h-[calc(100dvh-4rem)] min-h-[calc(100dvh-4rem)] shrink-0 flex-col overflow-y-auto border-r border-line bg-surface lg:flex ${sidebarCollapsed ? 'w-[4.25rem]' : 'w-56'}`}>
+          <div className={`flex min-h-14 items-center border-b border-line ${sidebarCollapsed ? 'justify-center' : 'justify-between pl-5 pr-3'}`}>
+            {!sidebarCollapsed && <span className="text-xs font-semibold text-muted">COSMICLABS</span>}
+            <button type="button" className={iconButton} aria-expanded={!sidebarCollapsed}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+              {sidebarCollapsed ? <PanelLeftOpen className="size-[17px]" /> : <PanelLeftClose className="size-[17px]" />}
+            </button>
+          </div>
+          <Navigation active={activeTab} collapsed={sidebarCollapsed} onNavigate={navigate} />
+          {!sidebarCollapsed && <p className="mt-auto border-t border-line px-5 py-4 text-xs text-muted">Read-only make.fun access · Local SQLite</p>}
+        </aside>
+
+        <main className="mx-auto w-full min-w-0 max-w-[1240px] flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {activeTab === 'overview' && (
             <OverviewView
               data={overviewData}
@@ -241,13 +234,15 @@ export default function App() {
               syncing={syncing}
               error={overviewError}
               onSyncNow={handleGlobalSync}
-              onOpenExplorer={() => setActiveTab('explorer')}
+              onOpenExplorer={openExplorer}
               onInspectBounty={inspectBounty}
             />
           )}
 
           {activeTab === 'explorer' && (
             <BountyExplorerView
+              initialQuery={explorerStart.query}
+              initialWatchlist={explorerStart.watchlist}
               onInspectBounty={inspectBounty}
               onDataMutated={fetchOverviewAndSettings}
             />

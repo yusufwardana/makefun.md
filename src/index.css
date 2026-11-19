@@ -1,64 +1,98 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme inline {
+  --color-canvas: var(--ui-canvas);
+  --color-surface: var(--ui-surface);
+  --color-field: var(--ui-field);
+  --color-quiet: var(--ui-quiet);
+  --color-hover: var(--ui-hover);
+  --color-ink: var(--ui-ink);
+  --color-secondary: var(--ui-secondary);
+  --color-muted: var(--ui-muted);
+  --color-line: var(--ui-line);
+  --color-control: var(--ui-control);
+  --color-accent: var(--ui-accent);
+  --color-accent-hover: var(--ui-accent-hover);
+  --color-accent-ink: var(--ui-accent-ink);
+  --color-accent-wash: var(--ui-accent-wash);
+  --color-success: var(--ui-success);
+  --color-warning: var(--ui-warning);
+  --color-danger: var(--ui-danger);
+  --font-display: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  color-scheme: light;
+  --ui-canvas: #f8f9fb;
+  --ui-surface: #ffffff;
+  --ui-field: #ffffff;
+  --ui-quiet: #f1f3f7;
+  --ui-hover: #e9edf4;
+  --ui-ink: #1a202b;
+  --ui-secondary: #3f4a5c;
+  --ui-muted: #566376;
+  --ui-line: #dce2eb;
+  --ui-control: #818da0;
+  --ui-accent: #3159a3;
+  --ui-accent-hover: #274780;
+  --ui-accent-ink: #ffffff;
+  --ui-accent-wash: #e8effd;
+  --ui-success: #116344;
+  --ui-warning: #854b13;
+  --ui-danger: #a32936;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --ui-canvas: #101216;
+  --ui-surface: #16191f;
+  --ui-field: #16191f;
+  --ui-quiet: #1e232d;
+  --ui-hover: #262d39;
+  --ui-ink: #f4f6fa;
+  --ui-secondary: #d6deea;
+  --ui-muted: #a6b3c7;
+  --ui-line: #303846;
+  --ui-control: #768196;
+  --ui-accent: #a4c1ff;
+  --ui-accent-hover: #bdd2ff;
+  --ui-accent-ink: #111d35;
+  --ui-accent-wash: #212f49;
+  --ui-success: #7edbb2;
+  --ui-warning: #f2bd76;
+  --ui-danger: #ff9ea6;
+}
+
 @layer base {
-  :root {
-    --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-  }
-
-  html,
   body {
-    font-family: var(--font-sans);
-    background-color: #090b0e;
-    color: #f3f4f6;
-    letter-spacing: 0.005em;
+    background: var(--ui-canvas);
+    color: var(--ui-ink);
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  .font-display {
-    font-family: var(--font-display);
+  h1, h2, h3, h4 {
     text-wrap: balance;
   }
 
-  code,
-  pre,
-  .font-mono {
-    font-family: var(--font-mono);
+  :where(a, button, summary):focus-visible {
+    outline: 2px solid var(--ui-accent);
+    outline-offset: 3px;
+  }
+
+  dialog::backdrop {
+    background: rgb(16 18 22 / 58%);
+  }
+
+  ::selection {
+    background: var(--ui-accent);
+    color: var(--ui-accent-ink);
   }
 }
 
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Subtle custom dark scrollbar */
-::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

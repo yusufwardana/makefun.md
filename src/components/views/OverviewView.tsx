@@ -1,15 +1,6 @@
-import React from 'react';
-import { ArrowRight, Bookmark, RefreshCw, ExternalLink, ClipboardList } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from 'recharts';
-import { Button, EmptyState, Panel, PanelHeader, SyncStateIndicator } from '../ui/primitives';
+import { useState, type FormEvent } from 'react';
+import { ArrowRight, Bookmark, ExternalLink, RefreshCw, Search } from 'lucide-react';
+import { Button, EmptyState, Input, Panel, PanelHeader, SyncStateIndicator } from '../ui/primitives';
 import { formatDateTime, formatRelativeDeadline, formatUsd } from '../../lib/utils';
 import type { AppSettings, BountyRecord } from '../../types/command-center';
 
@@ -38,301 +29,169 @@ interface OverviewViewProps {
   syncing: boolean;
   error: string | null;
   onSyncNow: () => void;
-  onOpenExplorer: () => void;
+  onOpenExplorer: (query?: string, watchlist?: boolean) => void;
   onInspectBounty: (slug: string) => void;
 }
 
-export const OverviewView: React.FC<OverviewViewProps> = ({
-  data,
-  loading,
-  syncing,
-  error,
-  onSyncNow,
-  onOpenExplorer,
-  onInspectBounty,
-}) => {
-  if (loading && !data) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-28 rounded-lg bg-[#0F1216] border border-white/[0.08] animate-pulse" />
-          ))}
-        </div>
-        <div className="h-80 rounded-lg bg-[#0F1216] border border-white/[0.08] animate-pulse" />
-      </div>
-    );
+const wholeNumber = new Intl.NumberFormat();
+
+export function OverviewView({ data, loading, syncing, error, onSyncNow, onOpenExplorer, onInspectBounty }: OverviewViewProps) {
+  const [query, setQuery] = useState('');
+
+  function search(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onOpenExplorer(query.trim());
   }
 
-  if (error && !data) {
-    return (
-      <Panel>
-        <EmptyState
-          title="Unable to load Command Center overview"
-          description={error}
-          action={
-            <Button variant="primary" onClick={onSyncNow}>
-              Retry Sync
-            </Button>
-          }
-        />
-      </Panel>
-    );
-  }
-
-  if (!data) return null;
+  const categories = data?.categoryBreakdown ?? [];
+  const maxPool = Math.max(1, ...categories.map(category => category.openPoolUsd));
 
   return (
-    <div className="space-y-6">
-      {/* Top Action Context Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-white/[0.07]">
-        <div>
-          <h1 className="text-xl font-semibold text-[#F3F4F6] tracking-tight">
-            COSMICLABS Command Overview
+    <div className="min-w-0 space-y-7">
+      <section aria-labelledby="overview-title" className="grid items-center gap-8 border-b border-line pb-8 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] lg:gap-10 lg:pb-10">
+        <div className="min-w-0">
+          <h1 id="overview-title" className="max-w-[15ch] text-[clamp(2.1rem,5vw,3.6rem)] font-semibold leading-[1.04] tracking-[-0.055em]">
+            Find your next <span className="text-accent">bounty.</span>
           </h1>
-          <p className="text-xs text-[#9CA3AF] mt-1">
-            Account {data.settings.accountHandle} · Last Sync: {data.lastGlobalSyncAt ? formatDateTime(data.lastGlobalSyncAt) : 'Not synced yet'}
+          <p className="mt-4 max-w-[54ch] text-sm leading-relaxed text-secondary sm:text-base">
+            Search make.fun competitions, check the official rules, and hand off the bounty context to Muse.
           </p>
+          <form onSubmit={search} className="mt-6 flex min-w-0 flex-wrap items-center gap-2">
+            <div className="relative min-w-0 flex-1 basis-52">
+              <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 size-[17px] -translate-y-1/2 text-muted" />
+              <Input aria-label="Search bounties" value={query} onChange={event => setQuery(event.target.value)}
+                placeholder="Title, skill, or category" className="min-h-12 pl-11" />
+            </div>
+            <Button type="submit" variant="primary" className="min-h-12">Search bounties</Button>
+          </form>
         </div>
-        <div className="flex items-center gap-2.5">
-          <Button variant="secondary" size="sm" onClick={onSyncNow} disabled={syncing}>
-            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-            <span>{syncing ? 'Syncing make.fun...' : 'Sync Bounties'}</span>
-          </Button>
-        </div>
-      </div>
 
-      {error && <p className="text-sm text-amber-200" role="status">{error}</p>}
-
-      {/* 4-Column Real Metrics Row (no fake stats) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Panel className="p-5">
-          <p className="text-xs text-[#9CA3AF]">Open Bounties on make.fun</p>
-          <div className="mt-2 flex items-baseline justify-between gap-2">
-            <span className="text-2xl font-semibold font-mono tabular-nums text-[#F3F4F6]">
-              {data.openBountiesCount}
-            </span>
-            <span className="text-xs text-[#9CA3AF] font-mono tabular-nums">
-              {data.totalSyncedBounties} total synced
-            </span>
+        <Panel className="min-w-0 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">Bounty feed</h2>
+            <Button variant="ghost" size="sm" onClick={onSyncNow} disabled={syncing}>
+              <RefreshCw aria-hidden="true" className={syncing ? 'size-4 animate-spin' : 'size-4'} />
+              {syncing ? 'Syncing make.fun' : 'Sync make.fun'}
+            </Button>
           </div>
-          <p className="mt-2 text-xs text-[#6B7280] font-mono tabular-nums">
-            Announced open pools: {formatUsd(data.openPoolTotalUsd)}
+          <p className="text-xs leading-relaxed text-muted">
+            {data?.lastGlobalSyncAt ? 'Last synced ' + formatDateTime(data.lastGlobalSyncAt) : 'No recorded sync yet'}
+            {data?.settings.accountHandle && ' · ' + data.settings.accountHandle}
           </p>
-        </Panel>
-
-        <Panel className="p-5">
-          <p className="text-xs text-[#9CA3AF]">Watchlisted Bounties</p>
-          <div className="mt-2 flex items-baseline justify-between gap-2">
-            <span className="text-2xl font-semibold font-mono tabular-nums text-[#F3F4F6]">
-              {data.watchlistedCount}
-            </span>
-          </div>
-          <p className="mt-2 text-xs text-[#6B7280] font-mono tabular-nums">
-            Review pinned competitions and private notes
-          </p>
-        </Panel>
-
-        <Panel className="p-5">
-          <p className="text-xs text-[#9CA3AF]">Verified Submissions</p>
-          <div className="mt-2 flex items-baseline justify-between gap-2">
-            <span className="text-2xl font-semibold font-mono tabular-nums text-[#F3F4F6]">
-              {data.verifiedSubmissionsCount}
-            </span>
-            <span className="text-xs text-[#9CA3AF] font-mono tabular-nums">
-              {data.evidenceCount} evidence logs
-            </span>
-          </div>
-          <p className="mt-2 text-xs text-[#6B7280]">
-            Verified via make.fun API or manual receipt
-          </p>
-        </Panel>
-
-        <Panel className="p-5">
-          <p className="text-xs text-[#9CA3AF]">Received USDC Rewards</p>
-          <div className="mt-2 flex items-baseline justify-between gap-2">
-            <span className="text-2xl font-semibold font-mono tabular-nums text-[#10B981]">
-              {formatUsd(data.rewardSummary.totalReceived)}
-            </span>
-            <span className="text-xs text-[#9CA3AF] font-mono tabular-nums">
-              {formatUsd(data.rewardSummary.totalVerifiedAwarded)} awarded
-            </span>
-          </div>
-          <p className="mt-2 text-xs text-[#6B7280]">
-            Separated strictly from open bounty pools
-          </p>
-        </Panel>
-      </div>
-
-      {/* Main Split: Top Open Bounties & Open Pool by Category Chart */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
-        <Panel className="xl:col-span-7 flex flex-col">
-          <PanelHeader
-            title="Active Open Bounties"
-            subtitle="Live read-only competition feed from make.fun"
-            actions={
-              <Button variant="ghost" size="sm" onClick={onOpenExplorer}>
-                <span>Explore All</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Button>
-            }
-          />
-          {data.topOpenBounties.length === 0 ? (
-            <EmptyState
-              title="No open bounties synced yet"
-              description="Run a read-only sync with make.fun to pull currently open competitions."
-              action={
-                <Button variant="primary" size="sm" onClick={onSyncNow} disabled={syncing}>
-                  Sync make.fun Bounties
-                </Button>
-              }
-            />
-          ) : (
-            <div className="divide-y divide-white/[0.06]">
-              {data.topOpenBounties.map((b) => (
-                <div
-                  key={b.slug}
-                  className="px-5 py-3.5 flex flex-wrap items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => onInspectBounty(b.slug)}
-                        className="text-sm font-medium text-[#F3F4F6] hover:text-[#3B82F6] transition-colors text-left truncate cursor-pointer"
-                      >
-                        {b.title}
-                      </button>
-                      {b.watchlisted && <Bookmark className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#9CA3AF]">
-                      <span>{b.category}</span>
-                      <span aria-hidden="true">·</span>
-                      <span className="font-mono tabular-nums">{formatUsd(b.potUsd || b.rewardAmount)} pool</span>
-                      <span aria-hidden="true">·</span>
-                      <span className="font-mono tabular-nums">{b.submissionCount} submissions</span>
-                      <span aria-hidden="true">·</span>
-                      <span className="font-mono tabular-nums">{formatRelativeDeadline(b.deadline)}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <SyncStateIndicator state={b.syncState} />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => onInspectBounty(b.slug)}
-                    >
-                      <ClipboardList className="w-3.5 h-3.5" />
-                      <span>Inspect</span>
-                    </Button>
-                  </div>
-                </div>
-              ))}
+          {data ? (
+            <dl className="mt-3 divide-y divide-line text-sm">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2">
+                <dt className="text-secondary">Open bounties</dt>
+                <dd className="text-right font-mono text-xs"><strong>{wholeNumber.format(data.openBountiesCount)}</strong> <span className="text-muted">/ {wholeNumber.format(data.totalSyncedBounties)} synced</span></dd>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2">
+                <dt className="text-secondary">Open prize pool</dt>
+                <dd className="font-mono text-xs font-semibold">{formatUsd(data.openPoolTotalUsd)}</dd>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2">
+                <dt className="text-secondary">Verified submissions</dt>
+                <dd className="font-mono text-xs"><strong>{wholeNumber.format(data.verifiedSubmissionsCount)}</strong> <span className="text-muted">· {wholeNumber.format(data.evidenceCount)} evidence logs</span></dd>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 pt-2">
+                <dt className="text-secondary">USDC received</dt>
+                <dd className="font-mono text-xs"><strong className="text-success">{formatUsd(data.rewardSummary.totalReceived)}</strong> <span className="text-muted">· {formatUsd(data.rewardSummary.totalVerifiedAwarded)} awarded</span></dd>
+              </div>
+            </dl>
+          ) : loading && (
+            <div role="status" aria-label="Loading overview" className="mt-4 space-y-3">
+              {[0, 1, 2, 3].map(row => <div key={row} className="h-6 animate-pulse rounded-md bg-quiet" />)}
             </div>
           )}
         </Panel>
+      </section>
 
-        <Panel className="xl:col-span-5 flex flex-col">
-          <PanelHeader
-            title="Open Prize Pool by Category"
-            subtitle="Announced USDC pools across currently open make.fun bounties"
-          />
-          <div className="p-5 flex-1 min-h-[280px]">
-            {data.categoryBreakdown.length === 0 ? (
-              <EmptyState
-                title="No category pool data"
-                description="Sync open bounties to inspect prize pools across competition categories."
-              />
+      {error && <p className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning" role="status">{error}</p>}
+
+      {data && (
+        <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <Panel className="min-w-0">
+            <PanelHeader title="Open bounties" subtitle="Official make.fun competition feed"
+              actions={<Button variant="ghost" size="sm" onClick={() => onOpenExplorer()}>
+                View catalog <ArrowRight className="size-4" aria-hidden="true" />
+              </Button>} />
+            {!data.topOpenBounties.length ? (
+              <EmptyState title="No open bounties in the feed" description="Sync with make.fun to populate the catalog."
+                action={<Button size="sm" onClick={onSyncNow} disabled={syncing}>Sync bounties</Button>} />
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart
-                  data={data.categoryBreakdown}
-                  margin={{ top: 8, right: 12, left: 0, bottom: 8 }}
-                >
-                  <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                  <XAxis
-                    dataKey="category"
-                    tick={{ fill: '#9CA3AF', fontSize: 12 }}
-                    axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fill: '#9CA3AF', fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => `$${v}`}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#14181E',
-                      borderColor: 'rgba(255,255,255,0.12)',
-                      borderRadius: '6px',
-                      color: '#F3F4F6',
-                      fontSize: '12px',
-                    }}
-                    formatter={(value) => [formatUsd(Number(value ?? 0)), 'Announced Pool']}
-                  />
-                  <Bar dataKey="openPoolUsd" fill="#3B82F6" radius={[4, 4, 0, 0]} maxBarSize={44} />
-                </BarChart>
-              </ResponsiveContainer>
+              <ul className="divide-y divide-line">
+                {data.topOpenBounties.map(bounty => (
+                  <li key={bounty.slug} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 transition-colors hover:bg-hover/60 sm:px-5">
+                    <div className="min-w-0">
+                      <button type="button" onClick={() => onInspectBounty(bounty.slug)}
+                        className="min-h-8 cursor-pointer text-left text-sm font-semibold text-ink hover:text-accent">
+                        {bounty.title}
+                      </button>
+                      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-relaxed text-muted">
+                        {bounty.watchlisted && <Bookmark aria-label="Watchlisted" className="size-3.5 shrink-0 text-warning" />}
+                        {bounty.category} · {formatUsd(bounty.potUsd || bounty.rewardAmount)} pool
+                        <span>· {wholeNumber.format(bounty.submissionCount)} submissions</span>
+                        <span>· {formatRelativeDeadline(bounty.deadline)}</span>
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <SyncStateIndicator state={bounty.syncState} />
+                      <Button variant="secondary" size="sm" aria-label={'Inspect ' + bounty.title} onClick={() => onInspectBounty(bounty.slug)}>Inspect</Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
+          </Panel>
+
+          <div className="min-w-0 space-y-6">
+            <Panel>
+              <PanelHeader title="Watchlist" subtitle={wholeNumber.format(data.watchlistedCount) + ' saved bounties'}
+                actions={<Button variant="ghost" size="sm" onClick={() => onOpenExplorer('', true)}>View watchlist</Button>} />
+              {!data.watchlistedBounties.length ? (
+                <EmptyState title="Your watchlist is empty" description="Save a bounty from Explorer to find it here again." />
+              ) : (
+                <ul className="divide-y divide-line">
+                  {data.watchlistedBounties.map(bounty => (
+                    <li key={bounty.slug} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+                      <div className="min-w-0">
+                        <button type="button" onClick={() => onInspectBounty(bounty.slug)}
+                          className="min-h-8 cursor-pointer text-left text-sm font-semibold hover:text-accent">{bounty.title}</button>
+                        <p className="text-xs text-muted">{bounty.category} · {formatUsd(bounty.potUsd || bounty.rewardAmount)} · {bounty.status}</p>
+                      </div>
+                      <a href={'https://make.fun/bounty/' + encodeURIComponent(bounty.slug)} target="_blank" rel="noreferrer"
+                        className="grid size-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-hover hover:text-accent"
+                        aria-label={`Open ${bounty.title} on make.fun`}>
+                        <ExternalLink className="size-4" aria-hidden="true" />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+
+            <Panel>
+              <PanelHeader title="Open prize pool by category" subtitle="Announced amounts in USDC" />
+              {!categories.length ? (
+                <EmptyState title="No category pool data" description="Sync open bounties to see the prize pool by category." />
+              ) : (
+                <ul className="space-y-4 p-4 sm:p-5">
+                  {categories.map(category => (
+                    <li key={category.category}>
+                      <div className="flex items-baseline justify-between gap-3 text-xs">
+                        <span className="break-words font-medium">{category.category}</span>
+                        <span className="shrink-0 font-mono text-secondary">{formatUsd(category.openPoolUsd)}</span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-quiet" aria-hidden="true">
+                        <div className="h-full rounded-full bg-accent" style={{ width: Math.max(0, 100 * category.openPoolUsd / maxPool) + '%' }} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
           </div>
-        </Panel>
-      </div>
-
-      {/* Bottom Row: Watchlist */}
-      <div>
-        <Panel>
-          <PanelHeader
-            title="Watchlisted Bounties"
-            subtitle="Competitions pinned by COSMICLABS for deeper study"
-            actions={
-              <Button variant="ghost" size="sm" onClick={onOpenExplorer}>
-                <span>Manage Watchlist</span>
-              </Button>
-            }
-          />
-          {data.watchlistedBounties.length === 0 ? (
-            <EmptyState
-              title="Your watchlist is empty"
-              description="Bookmark promising bounties in Bounty Explorer to track them here."
-              action={
-                <Button variant="secondary" size="sm" onClick={onOpenExplorer}>
-                  Browse Bounties
-                </Button>
-              }
-            />
-          ) : (
-            <div className="divide-y divide-white/[0.06]">
-              {data.watchlistedBounties.map((b) => (
-                <div key={b.slug} className="px-5 py-3 flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-[#F3F4F6] truncate">{b.title}</p>
-                    <p className="text-xs text-[#9CA3AF] mt-0.5 font-mono tabular-nums">
-                      {b.category} · {formatUsd(b.potUsd || b.rewardAmount)} · {b.status}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <a
-                      href={'https://make.fun/bounty/' + encodeURIComponent(b.slug)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="p-2 text-[#9CA3AF] hover:text-[#F3F4F6] transition-colors"
-                      aria-label={`Open ${b.title} on make.fun`}
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                    <Button variant="secondary" size="sm" onClick={() => onInspectBounty(b.slug)}>
-                      Inspect
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Panel>
-
-      </div>
+        </div>
+      )}
     </div>
   );
-};
+}
