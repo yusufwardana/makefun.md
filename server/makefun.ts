@@ -236,10 +236,12 @@ function recordMatchingAccountSubmissions(
   }
 }
 
-export async function syncCompetitionsFromMakefun(options?: {
+interface CompetitionSyncOptions {
   cursor?: string | null;
   includeOpenFirst?: boolean;
-}): Promise<{
+}
+
+async function syncCompetitionList(options?: CompetitionSyncOptions): Promise<{
   syncedCount: number;
   openCount: number;
   nextCursor: string | null;
@@ -292,19 +294,19 @@ export async function syncCompetitionsFromMakefun(options?: {
     : `${MAKEFUN_BASE}/api/competitions`;
 
   const listRes = await fetchJsonReadOnly(listUrl);
-  if (!listRes.ok || !listRes.data || typeof listRes.data !== 'object') {
+  const payload = listRes.data as { items?: MakefunCompetitionListItem[]; next_cursor?: string | null } | null;
+  if (!listRes.ok || !Array.isArray(payload?.items)) {
     crud.markBountiesOffline();
     return {
       syncedCount,
       openCount,
       nextCursor: crud.getSettingValue('nextCursor') || null,
       syncState: 'OFFLINE',
-      error: listRes.error || 'Failed to reach make.fun API',
+      error: listRes.error || 'Invalid competition list from make.fun',
     };
   }
 
-  const payload = listRes.data as { items?: MakefunCompetitionListItem[]; next_cursor?: string | null };
-  const items = Array.isArray(payload.items) ? payload.items : [];
+  const items = payload.items;
 
   for (const item of items) {
     if (!bountySlugSchema.safeParse(item?.slug).success) continue;
@@ -343,7 +345,24 @@ export async function syncCompetitionsFromMakefun(options?: {
   };
 }
 
-export async function syncSingleBountyDetails(slug: string): Promise<{
+const listSyncRequests = new Map<string, ReturnType<typeof syncCompetitionList>>();
+let listSyncQueue = Promise.resolve();
+
+export function syncCompetitionsFromMakefun(options?: CompetitionSyncOptions): ReturnType<typeof syncCompetitionList> {
+  const normalized = { cursor: options?.cursor || null, includeOpenFirst: options?.includeOpenFirst !== false };
+  const key = JSON.stringify(normalized);
+  const existing = listSyncRequests.get(key);
+  if (existing) return existing;
+
+  const request = listSyncQueue.then(() => syncCompetitionList(normalized)).finally(() => {
+    listSyncRequests.delete(key);
+  });
+  listSyncRequests.set(key, request);
+  listSyncQueue = request.then(() => undefined, () => undefined);
+  return request;
+}
+
+async function syncBountyDetails(slug: string): Promise<{
   bounty: BountyRecord | null;
   snapshot: BountySnapshot | null;
   syncState: SyncState;
@@ -353,7 +372,7 @@ export async function syncSingleBountyDetails(slug: string): Promise<{
 
   const [compRes, reqRes, lbRes, kitRes] = await Promise.all([
     fetchJsonReadOnly(`${MAKEFUN_BASE}/api/competitions/${encodeURIComponent(slug)}`),
-    fetchJsonReadOnly(`${MAKEFUN_BASE}/api/competitions/${encodeURIComponent(slug)}/requirements`),
+    fetchJsonReadOnly(`${MAKEFUN_BASE}/api/competitions/${encodeURIComponent(slug)}/requirements?format=json`),
     fetchJsonReadOnly(`${MAKEFUN_BASE}/api/competitions/${encodeURIComponent(slug)}/leaderboard`),
     fetchJsonReadOnly(`${MAKEFUN_BASE}/api/competitions/${encodeURIComponent(slug)}/kit`),
   ]);
@@ -376,7 +395,8 @@ export async function syncSingleBountyDetails(slug: string): Promise<{
   }
 
   const comp = compRes.data as Record<string, unknown>;
-  const reqData = reqRes.ok && reqRes.data && typeof reqRes.data === 'object' ? (reqRes.data as Record<string, unknown>) : null;
+  const requirements = reqRes.data as (Record<string, unknown> & { competition?: { slug?: unknown } }) | null;
+  const reqData = reqRes.ok && requirements?.competition?.slug === slug ? requirements : null;
   const lbData = lbRes.ok && lbRes.data && typeof lbRes.data === 'object' ? (lbRes.data as Record<string, unknown>) : null;
   const kitData = kitRes.ok && kitRes.data && typeof kitRes.data === 'object' ? (kitRes.data as Record<string, unknown>) : null;
 
@@ -420,6 +440,19 @@ export async function syncSingleBountyDetails(slug: string): Promise<{
     snapshot,
     syncState,
   };
+}
+
+const detailSyncRequests = new Map<string, ReturnType<typeof syncBountyDetails>>();
+
+export function syncSingleBountyDetails(slug: string): ReturnType<typeof syncBountyDetails> {
+  const existing = detailSyncRequests.get(slug);
+  if (existing) return existing;
+
+  const request = syncBountyDetails(slug).finally(() => {
+    detailSyncRequests.delete(slug);
+  });
+  detailSyncRequests.set(slug, request);
+  return request;
 }
 
 export function computeEffectiveSyncState(bounty: BountyRecord): SyncState {

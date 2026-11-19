@@ -14,6 +14,7 @@ test('official read-only sync preserves text and advances snapshots when the kit
   const requirements = { competition: { slug }, deliverables: [] };
   let kitFiles = ['RULES.txt'];
   let unreachable = false;
+  let activeRequirements = requirements;
   const mock = t.mock.method(globalThis, 'fetch', async (input: string, options: RequestInit) => {
     assert.equal(options.method, 'GET');
     assert.equal(options.redirect, 'error');
@@ -22,7 +23,7 @@ test('official read-only sync preserves text and advances snapshots when the kit
       [origin + '?status=open']: { items: [competition, { slug: 'invalid.bounty' }] },
       [origin]: { items: [competition], next_cursor: null },
       [origin + '/' + slug]: competition,
-      [origin + '/' + slug + '/requirements']: requirements,
+      [origin + '/' + slug + '/requirements?format=json']: activeRequirements,
       [origin + '/' + slug + '/leaderboard']: { entries: [] },
       [origin + '/' + slug + '/kit']: { files: kitFiles.map(path => ({ path })) },
     };
@@ -30,14 +31,18 @@ test('official read-only sync preserves text and advances snapshots when the kit
     return Response.json(byUrl[input]);
   });
   try {
-    const discovery = await syncCompetitionsFromMakefun();
+    const discoveryRequest = syncCompetitionsFromMakefun();
+    assert.equal(syncCompetitionsFromMakefun({ includeOpenFirst: true }), discoveryRequest);
+    const discovery = await discoveryRequest;
     assert.equal(discovery.syncedCount, 1);
     assert.equal(discovery.syncState, 'LIVE');
     assert.equal(crud.getBountyBySlug(slug)?.title, competition.title);
     assert.equal(crud.getBountyBySlug('invalid.bounty'), null);
     crud.updateBountyWatchlist(slug, true);
     crud.updateBountyNotes(slug, 'private notes');
-    const first = await syncSingleBountyDetails(slug);
+    const detailRequest = syncSingleBountyDetails(slug);
+    assert.equal(syncSingleBountyDetails(slug), detailRequest);
+    const first = await detailRequest;
     assert.deepEqual(first.snapshot?.rawRequirements, requirements);
     assert.equal(first.snapshot?.rawCompetition?.description, description);
     assert.equal(first.bounty?.watchlisted, true);
@@ -55,6 +60,12 @@ test('official read-only sync preserves text and advances snapshots when the kit
     assert.equal(offline.snapshot?.id, changed.snapshot?.id);
     assert.equal(buildMusePackage(offline.bounty!, offline.snapshot, null).officialPrompt, description);
     assert.equal(mock.mock.callCount(), 14);
+
+    unreachable = false;
+    activeRequirements = { ...requirements, competition: { slug: 'different-bounty' } };
+    const mismatched = await syncSingleBountyDetails(slug);
+    assert.equal(mismatched.syncState, 'UNVERIFIED');
+    assert.equal(mismatched.snapshot?.rawRequirements, null);
   } finally {
     crud.deleteBounty(slug);
   }
