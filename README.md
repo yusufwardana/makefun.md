@@ -1,180 +1,64 @@
 # COSMICLABS Make.fun Command Center
 
-Pusat kendali **local-first, read-only, dan evidence-first** milik **COSMICLABS** (`@0xkeinara`) untuk menemukan kompetisi/bounty **make.fun**, mempelajari spesifikasi resmi tanpa modifikasi, menyusun analisis kompetitif dan enhancement prompt berbasis LLM nyata, mengarahkan skill agen (**Hermes**) secara optimal, memantau transkrip eksekusi, serta melacak submission dan reward.
+A local-first command center for discovering make.fun competitions, inspecting official requirements, handing a bounty to MUSE BOUNTY AGENT, and tracking execution evidence, submissions and rewards.
 
----
+## Install and run
 
-## Fitur Utama
+This project uses Bun for dependency management and Node.js for the Express server and its native SQLite driver. The refactor was verified on Windows with Bun 1.4.2 and Node.js 24.22.1.
 
-### 1. Multi-Bounty Discovery & Opportunity Intelligence
-- Sinkronisasi read-only langsung ke endpoint resmi **make.fun** dengan pemisahan antara raw official snapshot (`bounty_snapshots`) dan data terstruktur (`bounties`).
-- Indikator status sinkronisasi transparan: `LIVE`, `STALE`, `OFFLINE`, dan `UNVERIFIED`.
-- Pencarian, filter status & kategori, watchlist, perbandingan peluang, serta sorting berdasarkan rasio **`$/Entry`** (pot USD per jumlah submission).
-- Pemeriksa prasyarat kompetisi (**Prerequisite Checker**: software, akun, dan MCP yang dibutuhkan) serta **Leaderboard Gap Insights** (perbandingan peringkat #1, baseline `house`, dan posisi akun `@0xkeinara`).
-
-### 2. AI Bounty Prompt Enhancer (4-Stage Workflow)
-Bukan generator template statis — setiap klik **Enhance with AI** menjalankan pipeline 4 tahap di backend:
-1. **Stage 1 — Official Context Verification**: Mengambil prompt resmi verbatim (atau manual override terverifikasi bila API tidak lengkap), aturan, deliverables, dan active gate checks.
-2. **Stage 2 — Read-Only Research & Grounding**: Menjalankan Google Search Grounding (bila diaktifkan & tersedia) dengan fallback otomatis gratis ke GitHub Public Search API dan Wikipedia API + inspeksi manifest Competition Kit make.fun.
-3. **Stage 3 — Category-Adapted Synthesis**: LLM menyusun strategi teknis/kreatif khusus kategori bounty, priority matrix berdasarkan kriteria penilaian, risiko, asumsi, instruksi Part 2 & Part 3, serta rekomendasi skill agen (**Agent Skill Stack**).
-4. **Stage 4 — Compliance Verification & Master Markdown Assembly**: Memverifikasi kepatuhan aturan, menggabungkan skill resmi + AI-curated, dan menyusun Master Prompt 3 bagian siap salin ke Hermes.
-
-### 3. Agent Skill Playbook (Prompt Studio)
-- Menggabungkan skill/MCP resmi bounty (`official_mcp`, `official_bounty`), skill terkurasi AI (`ai_curated`), dan skill kustom Founder (`founder_custom`).
-- Founder dapat mencentang/menghapus centang skill, menambahkan skill/tool Hermes manual beserta direktifnya, melihat pembaruan pratinjau Master Prompt secara real-time (`### Agent Skill & Tooling Directives` di dalam Part 2), dan menyimpan pilihan skill ke versi prompt SQLite.
-
-### 4. Versi Prompt Append-Only & Line Diff
-- Setiap penyimpanan membuat versi baru (`v1`, `v2`, dst.) di SQLite secara transaksional, lengkap dengan perbandingan line-by-line diff antar versi dan ekspor `.md`.
-
-### 5. Hermes Transcript Pre-Check & Monitor
-- Mengimpor log sesi/artefak Hermes secara read-only dari direktori yang diizinkan (`./evidence` secara default).
-- Evaluasi **9-gate transcript pre-check** (`transcripts_present`, `thinking_wellformed`, `thinking_in_window`, `thinking_committed`, `thinking_reproduces`, `thinking_turns`, `thinking_priced`, `thinking_revised`, `thinking_fresh`) sebelum submission.
-
-### 6. Submissions & Rewards Ledger
-- Pencatatan submission terverifikasi beserta commit SHA, tautan repositori, skor, dan peringkat.
-- Ledger reward terpisah antara nilai yang diumumkan (`announcedPrizeUsd`), award terverifikasi (`verifiedAwardUsd`), dan dana yang benar-benar diterima (`receivedUsd`).
-
----
-
-## Modul Dashboard (8 Views)
-
-1. **Overview** — Ringkasan metrik operasional, status LLM & sinkronisasi, serta watchlist aktif.
-2. **Bounty Explorer** — Penjelajah kompetisi make.fun dengan filter, rasio `$/Entry`, prasyarat, dan leaderboard insights.
-3. **AI Prompt Enhancer** (`PromptStudioView`) — Workspace 4 panel: Official Requirements, AI Analysis & Research, Enhanced Prompt Editor + Agent Skill Playbook, dan Final Master Prompt Preview/Diff.
-4. **Prompt Library** — Indeks seluruh draft dan riwayat versi prompt tersimpan.
-5. **Hermes Monitor** — Import/scan bukti sesi read-only dan pengecekan 9-gate transcript compliance.
-6. **Submissions** — Pelacak status entri dan peringkat kompetisi.
-7. **Rewards Analytics** — Grafik dan ledger pemantauan prize pool vs klaim aktual.
-8. **Settings** — Konfigurasi provider LLM (Gemini free-tier / paid-tier berizin eksplisit, atau endpoint OpenAI-compatible lokal), Google Search grounding, handle akun, interval sync, path evidence, dan test koneksi LLM.
-
----
-
-## Tech Stack
-
-- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Lucide Icons, Recharts
-- **Backend Server**: Express (`tsx server.ts`) terintegrasi dengan Vite middleware di development
-- **Database & ORM**: SQLite (`better-sqlite3`) + Drizzle ORM (`drizzle-orm` / `drizzle-kit`)
-- **LLM SDK**: `@google/genai` (server-side) & OpenAI-compatible HTTP client
-- **Validasi**: Zod
-
----
-
-## Struktur Proyek
-
-```text
-.
-├── server.ts                       # Express API server & Vite SPA mounting (port 3000)
-├── drizzle.config.ts               # Konfigurasi Drizzle Kit untuk SQLite
-├── server/
-│   ├── schema.ts                   # Definisi 9 tabel & relasi Drizzle ORM
-│   ├── db.ts                       # Koneksi SQLite, inisialisasi DDL/migrasi, mapper record
-│   ├── crud.ts                     # Lapisan CRUD transaksional & query command center
-│   ├── makefun.ts                  # Integrasi read-only API make.fun & leaderboard insights
-│   ├── llm.ts                      # Workflow 4-stage AI Enhancer & cek koneksi LLM
-│   └── transcript-gate.ts          # Evaluator 9-gate transcript compliance Hermes
-├── src/
-│   ├── App.tsx                     # Layout utama, navigasi sidebar & state global
-│   ├── lib/
-│   │   ├── prompt-builder.ts       # Ekstraksi/merge skill & assembler Master Markdown
-│   │   └── utils.ts                # Formatter mata uang/tanggal, diff, ekspor Markdown
-│   ├── types/
-│   │   └── command-center.ts       # Tipe TypeScript bersama frontend & backend
-│   └── components/
-│       ├── ui/primitives.tsx       # Komponen UI dashboard dark-mode
-│       └── views/                  # 8 halaman modul Command Center
-└── tests/
-    ├── command-center.test.ts      # Unit test utilitas, skill builder, gate & insights
-    └── crud.test.ts                # Unit test terisolasi Drizzle CRUD di SQLite :memory:
-```
-
----
-
-## Skema Database SQLite (9 Tabel)
-
-Database tersimpan lokal di `./data/cosmiclabs.db` dan otomatis diinisialisasi saat server dijalankan:
-
-- `bounties` — Metadata kompetisi, pot reward, prasyarat, watchlist, dan catatan Founder.
-- `bounty_snapshots` — Snapshot mentah resmi make.fun (`raw_competition_json`, `raw_requirements_json`, `raw_leaderboard_json`, `raw_kit_json`) + `manual_prompt_override`.
-- `ai_analyses` — Hasil analisis 4 tahap LLM, referensi riset, priority matrix, dan `recommended_skills_json`.
-- `prompt_drafts` — Metadata draft prompt per bounty dan referensi ke versi terbaru.
-- `prompt_versions` — Riwayat versi prompt append-only termasuk `selected_skills_json` dan `full_markdown`.
-- `hermes_evidence` — Arsip read-only log sesi dan artefak Hermes.
-- `submissions` — Catatan entri submission dan peringkat.
-- `rewards` — Ledger reward dan status klaim.
-- `app_settings` — Konfigurasi provider LLM, model, handle akun, dan cursor sinkronisasi.
-
----
-
-## Konfigurasi Environment
-
-Untuk penggunaan lokal, salin `.env.example` menjadi `.env` (jangan commit `.env` berisi secret asli). Pada lingkungan hosting/Cloud, atur variabel yang sama melalui environment variables atau secret manager platform:
-
-```env
-# Wajib jika menggunakan provider Google Gemini (hanya dibaca di server-side)
-GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
-
-# Opsional jika menggunakan endpoint OpenAI-compatible yang membutuhkan Bearer token
-# (hanya dikirim ke URL tersimpan yang lolos SSRF & host allowlist)
-OPENAI_COMPAT_API_KEY=""
-
-# Opsional: daftar host tambahan (dipisah koma) untuk OpenAI-compatible Base URL selain loopback
-ALLOWED_OPENAI_COMPAT_HOSTS=""
-
-# Kebijakan server-side untuk model Gemini berbayar (default: false; tidak dapat diubah dari UI/klien)
-ALLOW_PAID_LLM_REQUESTS="false"
-
-# Opsional: token autentikasi operator untuk endpoint mutasi API (Bearer / X-Operator-Token)
-COMMAND_CENTER_TOKEN=""
-
-# Opsional: batas harian & output token LLM
-MAX_DAILY_LLM_CALLS="50"
-MAX_LLM_OUTPUT_TOKENS="8192"
-
-# Network binding (default lokal: 127.0.0.1; 0.0.0.0 hanya untuk Cloud Run / reverse proxy tepercaya)
-HOST="127.0.0.1"
-PORT="3000"
-```
-
-> **Catatan Keamanan & Biaya**: API key hanya dibaca di server (`server/llm.ts`) dan statusnya ditampilkan secara read-only di halaman **Settings**. Model Gemini berbayar (`gemini-4-argon`, `gemini-4-carbon`) diblokir di server kecuali `ALLOW_PAID_LLM_REQUESTS=true`. Untuk provider OpenAI-compatible, biaya bergantung pada target endpoint (Ollama lokal $0; gateway eksternal dapat mengenakan biaya).
-
----
-
-## Menjalankan Secara Lokal
-
-> **Package Manager:** Proyek ini menggunakan **Bun** (`bun.lock`). Jangan gunakan `npm install` karena dapat gagal dengan konflik peer dependency (`ERESOLVE vite` vs `esbuild`).
-
-### 1. Instalasi Dependensi
-```bash
-bun install
-```
-
-### 2. Menjalankan Development Server (Port 3000)
-```bash
+~~~sh
+git clone https://github.com/yusufwardana/makefun.md.git
+cd makefun.md
+bun install --frozen-lockfile
 bun run dev
-```
-Aplikasi tersedia di `http://localhost:3000`.
+~~~
 
-### 3. Typecheck, Build Produksi, dan Unit Test
-```bash
-# TypeScript check
+Open [the local dashboard](http://127.0.0.1:3000). The server binds to loopback by default. Copy .env.example to .env if you need custom settings. Set COMMAND_CENTER_TOKEN to protect API mutations and Muse downloads. Enter the token in Settings for the current browser session. For remote hosting, put the whole app behind an authenticated reverse proxy since dashboard read endpoints follow the existing local access model.
+
+~~~powershell
 bun run lint
-
-# Build frontend produksi (Vite)
 bun run build
+bun x --no-install tsx --test 'tests/*.test.ts'
+~~~
 
-# Jalankan unit test (skill builder, transcript gate, dan Drizzle CRUD)
-bunx tsx --test tests/command-center.test.ts tests/crud.test.ts
-```
+For production, build first and run bun run start with NODE_ENV=production. The server serves the compiled dashboard.
 
-### 4. Menjalankan Mode Produksi
-```bash
-NODE_ENV=production bun run start
-```
+## From bounty discovery to reward tracking
 
----
+1. Sync from **Bounty Explorer**. Search, compare, or watchlist competitions. Open a bounty's details to inspect its prerequisites and leaderboard gap.
+2. Select **Inspect requirements & export** for the official prompt, rules, deliverables, judging, payout schedule, Competition Kit manifest and public leaderboard.
+3. Under **Export to Muse**, download JSON or Markdown. Copy the bootstrap instructions to use with the package.
+4. Open your existing **MUSE BOUNTY AGENT** workspace and provide the downloaded file using the workspace's attachment or file-reading workflow. Ask Muse to read it and follow the bootstrap. Muse verifies the official specification, loads its workspace instructions and Skill Registry, and explicitly reads selected SKILL.md files. Establish official session recording before implementation whenever the specification requires it.
+5. Review the current run's evidence in **Evidence Monitor**. The nine local transcript checks are preliminary. Official validation happens at make.fun. Use **Submissions** and **Rewards Analytics** to track receipts and distinguish announced, awarded and received amounts.
 
-## Prinsip Keamanan & Operasional
+This integration uses manual file handoff. The app reads public make.fun endpoints through GET requests and does not execute a bounty, register an entry, submit, or transact. It does not require an LLM account.
 
-- **Read-Only ke make.fun**: Aplikasi tidak pernah melakukan login otomatis, registrasi kompetisi, pengiriman submission, transaksi wallet, atau eksekusi prompt ke repository target.
-- **Tanpa Output AI Palsu**: Jika kredensial LLM tidak tersedia atau kuota habis, sistem menampilkan pesan error yang jelas tanpa menggantinya dengan template statis.
-- **Preservasi Prompt Resmi**: Teks **PART 1 — ORIGINAL MAKE.FUN PROMPT** selalu dipertahankan apa adanya dan aturan resmi kompetisi tetap menjadi prioritas utama dibanding instruksi enhancement.
+## Source freshness
+
+| Indicator | Meaning |
+| --- | --- |
+| LIVE | The official detail snapshot includes a verbatim prompt and matching requirements and is at most six hours old. |
+| STALE | The official detail snapshot includes the prompt and matching requirements but is older than six hours. |
+| OFFLINE | The most recent sync marked the bounty offline. Any cached official data remains available. |
+| UNVERIFIED | The details, prompt, matching requirements, or valid timestamp are incomplete. |
+
+The intelligence view shows the source and cached snapshot timestamp separately from the bounty record's last sync. A fresh core snapshot can still lack a kit manifest or leaderboard. Missing values are listed so Muse can verify them on the official page. The existing prerequisite checker and tracked-account leaderboard comparison remain available in Explorer.
+
+## Muse package contract
+
+- [JSON Schema v1.0.0](docs/muse-execution-package.schema.json) and [synthetic JSON example](docs/muse-execution-package.example.json)
+- [MUSE_BOUNTY_CONTEXT.md example and bootstrap](docs/MUSE_BOUNTY_CONTEXT.md)
+
+Each JSON export is validated on the server against the schema. It includes selected fields from the public competition, requirements, kit and leaderboard snapshots. The official prompt is the original description string, including whitespace. Null means the field was unavailable. An empty list means a list was present with no usable entries. Manual prompt overrides, operator notes, prior analyses, evidence, credentials and private settings stay outside the package. Official check applicability is true, false or null when unspecified. Review unavailable or unclear requirements in Muse before execution.
+
+createdAt is the official snapshot fetch time and is null for a package without a trusted snapshot. The snapshot ID hashes the matching raw official source objects and the competition source URL. The package ID and content checksum hash the exported context, source URLs and missing-field labels. Both hashes use compact UTF-8 JSON with recursively sorted object keys and original array order, using JavaScript number and string serialization. The package hash excludes timestamps and freshness status. Its input contains the top-level fields from bounty through submissionRequirements, the four URL fields from sourceProvenance at the top level and missingInformation. The checksum can verify package content. Official acceptance is verified by make.fun.
+
+The read-only download endpoint is GET /api/bounties/:slug/muse-export with format=json or format=markdown. An optional checksum from the inspected detail returns HTTP 409 if the selected content changed before download. The endpoint reads the local SQLite snapshot and serves fixed attachment filenames. Refresh in the UI to fetch a newer source. Source links are constrained to the official make.fun origin, and exported text is rendered as data. Markdown fences keep external markup inert when rendered.
+
+## SQLite data
+
+The default database is data/cosmiclabs.db. Use COSMICLABS_DB_PATH to select an existing database or a separate test file. The app preserves the existing SQLite schema and archives ai_analyses, prompt_drafts, prompt_versions, legacy prompt overrides and prior provider settings in place. Evidence keeps the historical hermes_evidence table name. Existing .env files are preserved. Legacy provider settings and secrets are no longer loaded by an enhancement workflow.
+
+Evidence scanning only reads permitted directories inside the resolved workspace. Confirm that any imported file belongs to the current bounty and session before using it. Read-only local checks cannot establish official provenance or verify acceptance.
+
+[Audit, file-by-file changes and QA](docs/REFRACTOR_QA.md)

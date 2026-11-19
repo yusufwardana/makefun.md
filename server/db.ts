@@ -4,76 +4,23 @@ import fs from 'fs';
 import path from 'path';
 import { drizzleSchema } from './schema.ts';
 import type {
-  AIAnalysisRecord,
   BountyRecord,
   BountySnapshot,
-  HermesEvidenceRecord,
-  LLMProviderId,
-  ModelOption,
+  EvidenceRecord,
   PrerequisitesData,
-  PromptDraftRecord,
-  PromptVersionRecord,
-  RecommendedSkill,
   RewardRecord,
   SubmissionRecord,
   SyncState,
 } from '../src/types/command-center.ts';
 import type {
-  AIAnalysisSelectRow,
   BountySelectRow,
   BountySnapshotSelectRow,
   HermesEvidenceSelectRow,
-  PromptDraftSelectRow,
-  PromptVersionSelectRow,
   RewardSelectRow,
   SubmissionSelectRow,
 } from './schema.ts';
 
 export type CommandCenterDatabase = BetterSQLite3Database<typeof drizzleSchema>;
-
-export const AVAILABLE_MODELS: ModelOption[] = [
-  {
-    id: 'gemini-4-hydrogen',
-    label: 'Gemini 4 Hydrogen',
-    provider: 'gemini',
-    tier: 'free',
-    description: 'Default free-tier Gemini 4 model with high-speed reasoning and Google Search grounding.',
-    supportsGrounding: true,
-  },
-  {
-    id: 'gemini-3.1-flash-lite',
-    label: 'Gemini 3.1 Flash Lite',
-    provider: 'gemini',
-    tier: 'free',
-    description: 'Lightweight free-tier Gemini model for rapid drafting and analysis.',
-    supportsGrounding: true,
-  },
-  {
-    id: 'gemini-4-argon',
-    label: 'Gemini 4 Argon',
-    provider: 'gemini',
-    tier: 'paid',
-    description: 'Paid-tier complex reasoning, coding, and algorithm model (requires explicit paid authorization).',
-    supportsGrounding: true,
-  },
-  {
-    id: 'gemini-4-carbon',
-    label: 'Gemini 4 Carbon',
-    provider: 'gemini',
-    tier: 'paid',
-    description: 'Paid-tier deep architectural and security reasoning model (requires explicit paid authorization).',
-    supportsGrounding: true,
-  },
-  {
-    id: 'openai-compatible-custom',
-    label: 'OpenAI-Compatible Endpoint',
-    provider: 'openai_compatible',
-    tier: 'depends_on_endpoint',
-    description:
-      'Local or allowlisted OpenAI-compatible server (cost depends on target endpoint: local Ollama is $0; external gateways may bill).',
-    supportsGrounding: false,
-  },
-];
 
 export function initSqliteSchema(sqlite: Database.Database): void {
   sqlite.pragma('journal_mode = WAL');
@@ -249,12 +196,6 @@ export function initSqliteSchema(sqlite: Database.Database): void {
   }
 
   const defaults: Record<string, string> = {
-    provider: 'gemini',
-    model: 'gemini-4-hydrogen',
-    openaiCompatBaseUrl: 'http://localhost:11434/v1',
-    openaiCompatModel: 'llama3.1:8b',
-    allowPaidRequests: 'false',
-    enableSearchGrounding: 'true',
     syncIntervalMinutes: '30',
     accountHandle: '@0xkeinara',
     permittedEvidencePaths: JSON.stringify(['./evidence']),
@@ -350,75 +291,11 @@ export function mapSnapshotRecord(row: BountySnapshotSelectRow): BountySnapshot 
   };
 }
 
-export function mapAnalysisRecord(row: AIAnalysisSelectRow): AIAnalysisRecord {
-  return {
-    id: row.id,
-    bountySlug: row.bountySlug,
-    provider: row.provider as LLMProviderId,
-    model: row.model,
-    stageStatus: row.stageStatus,
-    objectiveSummary: row.objectiveSummary,
-    mandatoryRequirements: safeJsonParse(row.mandatoryRequirementsJson, []),
-    judgingCriteria: safeJsonParse(row.judgingCriteriaJson, []),
-    recommendedApproach: row.recommendedApproach,
-    differentiationStrategy: row.differentiationStrategy,
-    architectureOrMethodology: row.architectureOrMethodology,
-    priorityMatrix: safeJsonParse(row.priorityMatrixJson, []),
-    implementationGuidance: safeJsonParse(row.implementationGuidanceJson, []),
-    qualityStandards: safeJsonParse(row.qualityStandardsJson, []),
-    testingValidation: safeJsonParse(row.testingValidationJson, []),
-    complianceConsiderations: safeJsonParse(row.complianceConsiderationsJson, []),
-    assumptionsUncertainties: safeJsonParse(row.assumptionsUncertaintiesJson, []),
-    risks: safeJsonParse(row.risksJson, []),
-    researchReferences: safeJsonParse(row.researchReferencesJson, []),
-    researchDisclosures: row.researchDisclosures || '',
-    recommendedSkills: safeJsonParse<RecommendedSkill[]>(row.recommendedSkillsJson, []),
-    tokenUsage: safeJsonParse(row.tokenUsageJson, null),
-    createdAt: row.createdAt,
-  };
-}
-
-export function mapPromptVersionRecord(row: PromptVersionSelectRow): PromptVersionRecord {
-  return {
-    id: row.id,
-    draftId: row.draftId,
-    bountySlug: row.bountySlug,
-    versionNumber: Number(row.versionNumber),
-    analysisId: row.analysisId ?? null,
-    part1OriginalPrompt: row.part1OriginalPrompt,
-    part2AiEnhancement: row.part2AiEnhancement,
-    part3ExecutionGuidelines: row.part3ExecutionGuidelines,
-    founderInstructions: row.founderInstructions || '',
-    selectedSkills: safeJsonParse<RecommendedSkill[]>(row.selectedSkillsJson, []),
-    fullMarkdown: row.fullMarkdown,
-    editSummary: row.editSummary || '',
-    createdBy: row.createdBy || 'Founder',
-    createdAt: row.createdAt,
-  };
-}
-
-export function mapPromptDraftRecord(
-  row: PromptDraftSelectRow,
-  extras?: { bountyTitle?: string | null; bountyCategory?: string | null }
-): PromptDraftRecord {
-  return {
-    id: row.id,
-    bountySlug: row.bountySlug,
-    bountyTitle: extras?.bountyTitle ?? undefined,
-    bountyCategory: extras?.bountyCategory ?? undefined,
-    title: row.title,
-    latestVersionId: row.latestVersionId ?? null,
-    founderNotes: row.founderNotes || '',
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  };
-}
-
-export function mapEvidenceRecord(row: HermesEvidenceSelectRow): HermesEvidenceRecord {
+export function mapEvidenceRecord(row: HermesEvidenceSelectRow): EvidenceRecord {
   return {
     id: row.id,
     bountySlug: row.bountySlug ?? null,
-    sourceType: row.sourceType as HermesEvidenceRecord['sourceType'],
+    sourceType: row.sourceType as EvidenceRecord['sourceType'],
     sourcePathOrName: row.sourcePathOrName,
     sessionId: row.sessionId ?? null,
     summary: row.summary,

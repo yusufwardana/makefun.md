@@ -1,0 +1,1168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "packageId": {
+      "type": "string",
+      "pattern": "^muse-sha256:[a-f0-9]{64}$"
+    },
+    "createdAt": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sourceRepository": {
+      "type": "string",
+      "const": "https://github.com/yusufwardana/makefun.md"
+    },
+    "bounty": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+        },
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https:\\/\\/make\\.fun\\/"
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deadline": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "publishedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "prizePoolUsd": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\d+(?:\\.\\d+)?$"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "submissionCount": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "acceptingSubmissions": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "payout": {
+          "type": "object",
+          "properties": {
+            "rail": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "claimDeadline": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "announcement": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "places": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "place": {
+                        "type": "number"
+                      },
+                      "amountUsd": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string",
+                                "pattern": "^\\d+(?:\\.\\d+)?$"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "place",
+                      "amountUsd"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "rail",
+            "claimDeadline",
+            "announcement",
+            "places"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "slug",
+        "title",
+        "url",
+        "status",
+        "deadline",
+        "publishedAt",
+        "prizePoolUsd",
+        "submissionCount",
+        "acceptingSubmissions",
+        "payout"
+      ],
+      "additionalProperties": false
+    },
+    "officialPrompt": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "officialRequirements": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "checks": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "check": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "description": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "phase": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "applies": {
+                        "type": [
+                          "boolean",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "check",
+                      "title",
+                      "description",
+                      "phase",
+                      "applies"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "quotaRule": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "checks",
+            "quotaRule"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "officialRules": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "addendum": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "current": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "text",
+            "addendum",
+            "current"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deliverables": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "kind": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "kind",
+              "description",
+              "required"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "judgingCriteria": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "summary": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "criteria": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "tieBreak": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "method",
+            "summary",
+            "criteria",
+            "tieBreak"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "prerequisites": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "asOf": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "summary": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "ifUnmet": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "software": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "required": {
+                        "type": [
+                          "boolean",
+                          "null"
+                        ]
+                      },
+                      "version": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "why": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "howToCheck": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "required",
+                      "version",
+                      "why",
+                      "howToCheck"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "accounts": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "required": {
+                        "type": [
+                          "boolean",
+                          "null"
+                        ]
+                      },
+                      "version": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "why": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "howToCheck": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "required",
+                      "version",
+                      "why",
+                      "howToCheck"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "mcp": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "required": {
+                        "type": [
+                          "boolean",
+                          "null"
+                        ]
+                      },
+                      "version": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "why": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "howToCheck": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "required",
+                      "version",
+                      "why",
+                      "howToCheck"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "asOf",
+            "summary",
+            "ifUnmet",
+            "software",
+            "accounts",
+            "mcp"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "competitionKit": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "manifestUrl": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^https:\\/\\/make\\.fun\\/"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "downloadUrl": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^https:\\/\\/make\\.fun\\/"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "phase": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "bundleSha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "finalManifestUrl": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^https:\\/\\/make\\.fun\\/"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "finalDownloadUrl": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^https:\\/\\/make\\.fun\\/"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "files": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "sha256": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "size": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "path",
+                      "sha256",
+                      "size"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "manifestUrl",
+            "downloadUrl",
+            "phase",
+            "bundleSha256",
+            "finalManifestUrl",
+            "finalDownloadUrl",
+            "files"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "leaderboardContext": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "view": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "phase": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "snapshotRankedCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "metric": {
+              "type": "string"
+            },
+            "leader": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "rank": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "handle": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "metric": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rank",
+                    "handle",
+                    "title",
+                    "metric"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "houseBaseline": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "rank": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "handle": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "metric": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rank",
+                    "handle",
+                    "title",
+                    "metric"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "topEntries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rank": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "handle": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "metric": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "rank",
+                  "handle",
+                  "title",
+                  "metric"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "view",
+            "phase",
+            "snapshotRankedCount",
+            "metric",
+            "leader",
+            "houseBaseline",
+            "topEntries"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "recordingRequirements": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "check": {
+                "type": "string"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "phase": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "applies": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "check",
+              "title",
+              "description",
+              "phase",
+              "applies"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "submissionRequirements": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "endpoint": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^https:\\/\\/make\\.fun\\/"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "method": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "contentType": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "fields": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "readmeTemplate": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "repositoryAbout": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "homepage": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "topics": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "description",
+                    "homepage",
+                    "topics"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "endpoint",
+            "method",
+            "contentType",
+            "fields",
+            "readmeTemplate",
+            "repositoryAbout"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sourceProvenance": {
+      "type": "object",
+      "properties": {
+        "snapshotId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^makefun-sha256:[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fetchedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recordLastSyncedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "LIVE",
+            "STALE",
+            "OFFLINE",
+            "UNVERIFIED"
+          ]
+        },
+        "competitionUrl": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^https:\\/\\/make\\.fun\\/"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "requirementsUrl": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^https:\\/\\/make\\.fun\\/"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kitUrl": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^https:\\/\\/make\\.fun\\/"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "leaderboardUrl": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^https:\\/\\/make\\.fun\\/"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "contentChecksum": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "snapshotId",
+        "fetchedAt",
+        "recordLastSyncedAt",
+        "status",
+        "competitionUrl",
+        "requirementsUrl",
+        "kitUrl",
+        "leaderboardUrl",
+        "contentChecksum"
+      ],
+      "additionalProperties": false
+    },
+    "missingInformation": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "packageId",
+    "createdAt",
+    "sourceRepository",
+    "bounty",
+    "officialPrompt",
+    "officialRequirements",
+    "officialRules",
+    "deliverables",
+    "judgingCriteria",
+    "prerequisites",
+    "competitionKit",
+    "leaderboardContext",
+    "recordingRequirements",
+    "submissionRequirements",
+    "sourceProvenance",
+    "missingInformation"
+  ],
+  "additionalProperties": false
+}

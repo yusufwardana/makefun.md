@@ -23,7 +23,7 @@ const STATUS_META: Record<
   rejected: { label: 'Rejected', colorClass: 'text-[#EF4444]', Icon: XCircle },
 };
 
-export const SubmissionsView: React.FC = () => {
+export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards }) => {
   const [accountHandle, setAccountHandle] = useState('@0xkeinara');
   const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
   const [bounties, setBounties] = useState<BountyRecord[]>([]);
@@ -112,14 +112,17 @@ export const SubmissionsView: React.FC = () => {
             Official submissions matched for {accountHandle} or recorded from verified make.fun receipts
           </p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => setShowAdd((v) => !v)}>
-          <Plus className="w-3.5 h-3.5" />
-          <span>Record Verified Receipt</span>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" onClick={onRewards}>Review rewards</Button>
+          <Button variant="primary" size="sm" onClick={() => setShowAdd((v) => !v)}>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Record Verified Receipt</span>
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-md bg-[#0F1216] border border-white/[0.08] px-4 py-2.5 text-xs text-[#9CA3AF]">
-        Honest verification policy: Only entries confirmed by make.fun public competition endpoints or manually verified submission receipts appear here. Local Hermes artifacts never imply submission success.
+        Submission status comes from make.fun or a verified receipt. Local evidence is reviewed in Evidence Monitor.
       </div>
 
       {showAdd && (

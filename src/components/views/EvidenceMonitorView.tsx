@@ -22,22 +22,22 @@ import { formatDateTime } from '../../lib/utils';
 import { fetch } from '../../lib/api';
 import type {
   BountyRecord,
-  HermesEvidenceRecord,
+  EvidenceRecord,
   TranscriptGateReport,
 } from '../../types/command-center';
 
-export const HermesMonitorView: React.FC = () => {
-  const [evidence, setEvidence] = useState<HermesEvidenceRecord[]>([]);
+export const EvidenceMonitorView: React.FC<{ initialSlug: string | null; onSubmissions: () => void }> = ({ initialSlug, onSubmissions }) => {
+  const [evidence, setEvidence] = useState<EvidenceRecord[]>([]);
   const [permittedPaths, setPermittedPaths] = useState<string[]>([]);
   const [bounties, setBounties] = useState<BountyRecord[]>([]);
-  const [selectedItem, setSelectedItem] = useState<HermesEvidenceRecord | null>(null);
+  const [selectedItem, setSelectedItem] = useState<EvidenceRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [scanResultMsg, setScanResultMsg] = useState<string | null>(null);
 
   // Import form
   const [showImport, setShowImport] = useState(false);
-  const [importSlug, setImportSlug] = useState('');
+  const [importSlug, setImportSlug] = useState(initialSlug ?? '');
   const [importType, setImportType] = useState<'session_export' | 'local_log' | 'project_artifact'>('session_export');
   const [importName, setImportName] = useState('');
   const [importSessionId, setImportSessionId] = useState('');
@@ -51,7 +51,7 @@ export const HermesMonitorView: React.FC = () => {
   const [precheckError, setPrecheckError] = useState<string | null>(null);
 
   useEffect(() => {
-    setPrecheckSlug(selectedItem?.bountySlug || '');
+    setPrecheckSlug(selectedItem?.bountySlug || initialSlug || '');
     setPrecheckReport(null);
     setPrecheckError(null);
   }, [selectedItem?.id]);
@@ -65,7 +65,7 @@ export const HermesMonitorView: React.FC = () => {
       ]);
       const evData = await evRes.json();
       const bData = await bRes.json();
-      const items = (evData.evidence || []) as HermesEvidenceRecord[];
+      const items = (evData.evidence || []) as EvidenceRecord[];
       setEvidence(items);
       setPermittedPaths(evData.permittedPaths || []);
       setBounties(bData.items || []);
@@ -172,7 +172,9 @@ export const HermesMonitorView: React.FC = () => {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-white/[0.07]">
         <div>
-          <h1 className="text-xl font-semibold text-[#F3F4F6] tracking-tight">Hermes Monitor</h1>
+          <h1 className="text-xl font-semibold text-[#F3F4F6] tracking-tight">Evidence Monitor</h1>
+          {initialSlug && <p className="mt-1 text-xs text-[#D1D5DB]">Handoff bounty · {initialSlug}</p>}
+          <Button variant="ghost" size="sm" onClick={onSubmissions}>Track submissions</Button>
           <p className="text-xs text-[#9CA3AF] mt-1">
             Strictly read-only inspection of authorized session exports, logs, and local project evidence
           </p>
@@ -204,7 +206,7 @@ export const HermesMonitorView: React.FC = () => {
         <div className="flex items-center gap-2 text-[#D1D5DB]">
           <ShieldCheck className="w-4 h-4 text-[#10B981] shrink-0" />
           <span>
-            Read-only boundary enforced: Hermes Monitor never executes prompts, controls agent processes, or infers submission success from local files.
+            Read-only boundary enforced: Evidence Monitor never executes prompts, controls agent processes, or infers submission success from local files.
           </span>
         </div>
         <span className="font-mono text-[#9CA3AF]">
@@ -220,7 +222,7 @@ export const HermesMonitorView: React.FC = () => {
 
       {showImport && (
         <Panel>
-          <PanelHeader title="Import Read-Only Hermes Session Export or Evidence" />
+          <PanelHeader title="Import Session Export or Evidence" />
           <form onSubmit={handleImportSubmit} className="p-5 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
@@ -228,7 +230,7 @@ export const HermesMonitorView: React.FC = () => {
                 <Select
                   value={importType}
                   onChange={(e) =>
-                    setImportType(e.target.value as HermesEvidenceRecord['sourceType'])
+                    setImportType(e.target.value as EvidenceRecord['sourceType'])
                   }
                   className="w-full"
                 >
@@ -242,7 +244,7 @@ export const HermesMonitorView: React.FC = () => {
                 <Input
                   value={importName}
                   onChange={(e) => setImportName(e.target.value)}
-                  placeholder="e.g. hermes-tiny-chess.jsonl"
+                  placeholder="e.g. muse-session.jsonl"
                   required
                 />
               </div>
@@ -276,7 +278,7 @@ export const HermesMonitorView: React.FC = () => {
                 rows={6}
                 value={importContent}
                 onChange={(e) => setImportContent(e.target.value)}
-                placeholder="Paste read-only Hermes session transcript, JSONL log, or test verification output..."
+                placeholder="Paste a Muse or other agent session transcript, JSONL log, or test verification output..."
                 className="font-mono text-xs"
                 required
               />
@@ -298,8 +300,8 @@ export const HermesMonitorView: React.FC = () => {
       ) : evidence.length === 0 ? (
         <Panel>
           <EmptyState
-            title="No Hermes evidence imported yet"
-            description="Upload a read-only Hermes session export or configure a permitted local directory in Settings and click Scan Permitted Paths."
+            title="No evidence imported yet"
+            description="Import an agent session export or configure a permitted local directory in Settings and click Scan Permitted Paths."
             action={
               <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
                 Import Read-Only Evidence
@@ -359,7 +361,7 @@ export const HermesMonitorView: React.FC = () => {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <div className="text-xs font-semibold text-[#F3F4F6]">
-                        Transcript Gate Pre-Check (9 make.fun checks)
+                        Transcript Gate Pre-Check (9 local checks)
                       </div>
                       <div className="text-[11px] text-[#9CA3AF]">
                         Local read-only heuristic pre-check; official validation still runs on make.fun at submit time.

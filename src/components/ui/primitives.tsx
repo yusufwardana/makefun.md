@@ -84,11 +84,9 @@ export const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement>> = (
   />
 );
 
-export const Panel: React.FC<{
-  children: React.ReactNode;
-  className?: string;
-}> = ({ children, className }) => (
+export const Panel: React.FC<React.ComponentPropsWithRef<'div'>> = ({ children, className, ...props }) => (
   <div
+    {...props}
     className={cn(
       'rounded-lg bg-[#0F1216] border border-white/[0.08]',
       className

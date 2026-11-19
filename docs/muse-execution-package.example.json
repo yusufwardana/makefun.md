@@ -1,0 +1,181 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "muse-sha256:a68ddf1344b99f27ece5711ac05ebdd2bac23f652518c7c3ee666903e50afe5d",
+  "createdAt": "2026-11-19T10:00:00.000Z",
+  "sourceRepository": "https://github.com/yusufwardana/makefun.md",
+  "bounty": {
+    "slug": "example-only",
+    "title": "Synthetic example (not an official bounty)",
+    "url": "https://make.fun/bounty/example-only",
+    "status": "open",
+    "deadline": "2026-11-20T10:00:00.000Z",
+    "publishedAt": null,
+    "prizePoolUsd": "100.00",
+    "submissionCount": 0,
+    "acceptingSubmissions": null,
+    "payout": {
+      "rail": "manual",
+      "claimDeadline": null,
+      "announcement": null,
+      "places": [
+        {
+          "place": 1,
+          "amountUsd": "100.00"
+        }
+      ]
+    }
+  },
+  "officialPrompt": "  Synthetic example. Build a test fixture.\r\n~~~\n<script>external text</script>\n\n",
+  "officialRequirements": {
+    "checks": [
+      {
+        "check": "transcripts_recorded",
+        "title": "Recording",
+        "description": "Record this session.",
+        "phase": null,
+        "applies": true
+      },
+      {
+        "check": "thinking_fresh",
+        "title": null,
+        "description": null,
+        "phase": null,
+        "applies": false
+      }
+    ],
+    "quotaRule": null
+  },
+  "officialRules": {
+    "text": "Fixture rule.",
+    "addendum": null,
+    "current": null
+  },
+  "deliverables": [
+    {
+      "name": "repo_url",
+      "kind": "form_field",
+      "description": "Public repository.",
+      "required": true
+    },
+    {
+      "name": "notes",
+      "kind": null,
+      "description": null,
+      "required": false
+    },
+    {
+      "name": "unknown",
+      "kind": null,
+      "description": null,
+      "required": null
+    }
+  ],
+  "judgingCriteria": {
+    "method": "judges",
+    "summary": "Fixture judging summary.",
+    "criteria": [
+      "Fixture criterion."
+    ],
+    "tieBreak": null
+  },
+  "prerequisites": {
+    "asOf": null,
+    "summary": null,
+    "ifUnmet": null,
+    "software": [
+      {
+        "name": "Node.js",
+        "required": true,
+        "version": null,
+        "why": null,
+        "howToCheck": null
+      }
+    ],
+    "accounts": null,
+    "mcp": [
+      {
+        "name": "Fixture MCP",
+        "required": true,
+        "version": null,
+        "why": null,
+        "howToCheck": null
+      }
+    ]
+  },
+  "competitionKit": {
+    "manifestUrl": "https://make.fun/api/competitions/example-only/kit",
+    "downloadUrl": "https://make.fun/c/example-only/kit",
+    "phase": "practice",
+    "bundleSha256": null,
+    "finalManifestUrl": "https://make.fun/api/competitions/example-only/kit?phase=final",
+    "finalDownloadUrl": null,
+    "files": [
+      {
+        "path": "RULES.txt",
+        "sha256": null,
+        "size": 32
+      }
+    ]
+  },
+  "leaderboardContext": {
+    "view": null,
+    "phase": "practice",
+    "snapshotRankedCount": 1,
+    "metric": "score",
+    "leader": {
+      "rank": 1,
+      "handle": "sample",
+      "title": "Fixture entry",
+      "metric": "42"
+    },
+    "houseBaseline": null,
+    "topEntries": [
+      {
+        "rank": 1,
+        "handle": "sample",
+        "title": "Fixture entry",
+        "metric": "42"
+      }
+    ]
+  },
+  "recordingRequirements": [
+    {
+      "check": "transcripts_recorded",
+      "title": "Recording",
+      "description": "Record this session.",
+      "phase": null,
+      "applies": true
+    },
+    {
+      "check": "thinking_fresh",
+      "title": null,
+      "description": null,
+      "phase": null,
+      "applies": false
+    }
+  ],
+  "submissionRequirements": {
+    "endpoint": null,
+    "method": "POST",
+    "contentType": null,
+    "fields": [
+      "repo_url"
+    ],
+    "readmeTemplate": null,
+    "repositoryAbout": null
+  },
+  "sourceProvenance": {
+    "snapshotId": "makefun-sha256:a42e7fed397917af7c0ebbc939f9617940650d3f6c57cab2e4b108c1e58346ae",
+    "fetchedAt": "2026-11-19T10:00:00.000Z",
+    "recordLastSyncedAt": "2026-11-19T10:00:00.000Z",
+    "status": "LIVE",
+    "competitionUrl": "https://make.fun/api/competitions/example-only",
+    "requirementsUrl": "https://make.fun/api/competitions/example-only/requirements",
+    "kitUrl": "https://make.fun/api/competitions/example-only/kit",
+    "leaderboardUrl": "https://make.fun/api/competitions/example-only/leaderboard",
+    "contentChecksum": "sha256:a68ddf1344b99f27ece5711ac05ebdd2bac23f652518c7c3ee666903e50afe5d"
+  },
+  "missingInformation": [
+    "Mandatory status for some deliverables"
+  ]
+}

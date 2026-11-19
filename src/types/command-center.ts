@@ -1,25 +1,8 @@
 export type SyncState = 'LIVE' | 'STALE' | 'OFFLINE' | 'UNVERIFIED';
 
-export type LLMProviderId = 'gemini' | 'openai_compatible';
-
 export type SubmissionStatus = 'submitted' | 'accepted' | 'judged' | 'awarded' | 'rejected';
 
 export type ClaimStatus = 'announced' | 'awarded_unclaimed' | 'claimed_received';
-
-export type SkillSource = 'official_bounty' | 'official_mcp' | 'ai_curated' | 'founder_custom';
-
-export type SkillPriority = 'essential' | 'recommended' | 'optional';
-
-export interface RecommendedSkill {
-  id: string;
-  name: string;
-  category: string;
-  source: SkillSource;
-  priority: SkillPriority;
-  rationale: string;
-  agentDirective: string;
-  enabled: boolean;
-}
 
 export interface PrerequisiteItem {
   id?: string;
@@ -135,87 +118,7 @@ export interface BountySnapshot {
   contentHash: string;
 }
 
-export interface ResearchReference {
-  title: string;
-  url: string;
-  sourceType:
-    | 'google_search'
-    | 'makefun_kit'
-    | 'official_docs'
-    | 'github_public'
-    | 'wikipedia_api'
-    | 'model_note';
-  relevance: string;
-}
-
-export interface PriorityItem {
-  criterion: string;
-  weightOrEmphasis: string;
-  actionableFocus: string;
-}
-
-export interface AIAnalysisRecord {
-  id: string;
-  bountySlug: string;
-  provider: LLMProviderId;
-  model: string;
-  stageStatus: string;
-  objectiveSummary: string;
-  mandatoryRequirements: string[];
-  judgingCriteria: string[];
-  recommendedApproach: string;
-  differentiationStrategy: string;
-  architectureOrMethodology: string;
-  priorityMatrix: PriorityItem[];
-  implementationGuidance: string[];
-  qualityStandards: string[];
-  testingValidation: string[];
-  complianceConsiderations: string[];
-  assumptionsUncertainties: string[];
-  risks: string[];
-  researchReferences: ResearchReference[];
-  researchDisclosures: string;
-  recommendedSkills?: RecommendedSkill[];
-  tokenUsage: {
-    promptTokens?: number;
-    completionTokens?: number;
-    totalTokens?: number;
-  } | null;
-  createdAt: string;
-}
-
-export interface PromptVersionRecord {
-  id: string;
-  draftId: string;
-  bountySlug: string;
-  versionNumber: number;
-  analysisId: string | null;
-  part1OriginalPrompt: string;
-  part2AiEnhancement: string;
-  part3ExecutionGuidelines: string;
-  founderInstructions: string;
-  selectedSkills?: RecommendedSkill[];
-  fullMarkdown: string;
-  editSummary: string;
-  createdBy: string;
-  createdAt: string;
-}
-
-export interface PromptDraftRecord {
-  id: string;
-  bountySlug: string;
-  bountyTitle?: string;
-  bountyCategory?: string;
-  title: string;
-  latestVersionId: string | null;
-  founderNotes: string;
-  createdAt: string;
-  updatedAt: string;
-  latestVersion?: PromptVersionRecord | null;
-  versionCount?: number;
-}
-
-export interface HermesEvidenceRecord {
+export interface EvidenceRecord {
   id: string;
   bountySlug: string | null;
   sourceType: 'session_export' | 'local_log' | 'project_artifact';
@@ -262,56 +165,11 @@ export interface RewardRecord {
   notes: string;
 }
 
-export interface ModelOption {
-  id: string;
-  label: string;
-  provider: LLMProviderId;
-  tier: 'free' | 'paid' | 'depends_on_endpoint';
-  description: string;
-  supportsGrounding: boolean;
-}
-
-export interface LLMConnectionTestReport {
-  ok: boolean;
-  provider: LLMProviderId;
-  model: string;
-  reply: string;
-  latencyMs: number;
-  connectivity: {
-    ok: boolean;
-    latencyMs: number;
-    detail: string;
-  };
-  capability: {
-    ok: boolean;
-    jsonModeSupported: boolean;
-    structuredSchemaSupported: boolean;
-    thinkingSupported: boolean;
-    groundingConfigured: boolean;
-    detail: string;
-  };
-}
-
 export interface AppSettings {
-  provider: LLMProviderId;
-  model: string;
-  openaiCompatBaseUrl: string;
-  openaiCompatModel: string;
-  allowPaidRequests: boolean;
-  paidPolicySource: 'server_env';
   authRequired: boolean;
-  allowedOpenAICompatHosts: string[];
-  dailyLlmCap: number;
-  maxLlmOutputTokens: number;
-  enableSearchGrounding: boolean;
   syncIntervalMinutes: number;
   accountHandle: string;
   permittedEvidencePaths: string[];
   lastGlobalSyncAt: string | null;
   nextCursor: string | null;
-  credentialStatus: {
-    geminiKeyConfigured: boolean;
-    openaiCompatKeyConfigured: boolean;
-  };
-  availableModels: ModelOption[];
 }

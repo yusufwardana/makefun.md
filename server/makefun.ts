@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { crud } from './crud.ts';
+import { bountySlugSchema } from '../src/types/muse-package.ts';
 import type {
   BountyRecord,
   BountySnapshot,
@@ -54,6 +55,7 @@ async function fetchJsonReadOnly(url: string, timeoutMs = 12000): Promise<{ ok: 
   try {
     const res = await fetch(url, {
       method: 'GET',
+      redirect: 'error',
       headers: {
         Accept: 'application/json',
         'User-Agent': 'COSMICLABS-CommandCenter/1.0 (read-only)',
@@ -150,7 +152,7 @@ function upsertBountyFromItem(item: MakefunCompetitionListItem, syncState: SyncS
     sponsorVerified: Boolean(item.sponsor?.isVerified),
     summary: item.summary ?? null,
     harnessKind: item.harnessKind ?? null,
-    acceptingSubmissions: Boolean(item.acceptingSubmissions || item.status === 'open'),
+    acceptingSubmissions: item.acceptingSubmissions ?? item.status === 'open',
     isDemo: Boolean(item.demo),
     syncState,
     lastSyncedAt: nowIso,
@@ -252,12 +254,13 @@ export async function syncCompetitionsFromMakefun(options?: {
   if (!options?.cursor && options?.includeOpenFirst !== false) {
     const openRes = await fetchJsonReadOnly(`${MAKEFUN_BASE}/api/competitions?status=open`);
     if (openRes.ok && openRes.data && typeof openRes.data === 'object') {
-      const items = (openRes.data as { items?: MakefunCompetitionListItem[] }).items || [];
+      const payload = openRes.data as { items?: MakefunCompetitionListItem[] };
+      const items = Array.isArray(payload.items) ? payload.items : [];
       for (const item of items) {
-        if (!item.slug) continue;
+        if (!bountySlugSchema.safeParse(item?.slug).success) continue;
         seenSlugs.add(item.slug);
         upsertBountyFromItem(
-          { ...item, status: item.status || 'open', acceptingSubmissions: true },
+          { ...item, status: item.status || 'open', acceptingSubmissions: item.acceptingSubmissions ?? true },
           'LIVE',
           nowIso
         );
@@ -304,7 +307,7 @@ export async function syncCompetitionsFromMakefun(options?: {
   const items = Array.isArray(payload.items) ? payload.items : [];
 
   for (const item of items) {
-    if (!item.slug) continue;
+    if (!bountySlugSchema.safeParse(item?.slug).success) continue;
     if (!seenSlugs.has(item.slug)) {
       upsertBountyFromItem(item, 'LIVE', nowIso);
       if (!crud.hasAnyBountySnapshot(item.slug)) {
@@ -355,7 +358,7 @@ export async function syncSingleBountyDetails(slug: string): Promise<{
     fetchJsonReadOnly(`${MAKEFUN_BASE}/api/competitions/${encodeURIComponent(slug)}/kit`),
   ]);
 
-  if (!compRes.ok || !compRes.data || typeof compRes.data !== 'object') {
+  if (!compRes.ok || !compRes.data || (compRes.data as { slug?: unknown }).slug !== slug) {
     const existingBounty = crud.getBountyBySlug(slug);
     const existingSnap = crud.getLatestBountySnapshot(slug);
 
@@ -394,7 +397,7 @@ export async function syncSingleBountyDetails(slug: string): Promise<{
   );
 
   const officialPromptText = extractOfficialPromptText(comp, reqData);
-  const newHash = hashContent({ comp, reqData, officialPromptText });
+  const newHash = hashContent({ comp, reqData, lbData, kitData, officialPromptText });
 
   const snapshot = crud.saveBountySnapshot({
     bountySlug: slug,
@@ -443,7 +446,7 @@ export function extractLeaderboardInsights(
   const columns = Array.isArray(rawLeaderboard.columns)
     ? (rawLeaderboard.columns as Array<{ key?: string; title?: string }>)
     : [];
-  const rankCol = columns.find((c) => c.key === rankKey);
+  const rankCol = columns.find((c) => c?.key === rankKey);
   const rankKeyTitle = rankCol?.title || rankKey;
 
   const cleanHandle = accountHandle.replace(/^@/, '').trim().toLowerCase();
@@ -476,7 +479,7 @@ export function extractLeaderboardInsights(
     };
   };
 
-  const mapped = entries.map(toInsight);
+  const mapped = entries.filter(e => e && typeof e === 'object' && !Array.isArray(e)).map(toInsight);
   const topEntries = mapped.filter((m) => !m.isBaseline).slice(0, 5);
   const houseBaseline = mapped.find((m) => m.isBaseline) || null;
   const accountEntry = mapped.find((m) => m.isAccountMatch) || null;

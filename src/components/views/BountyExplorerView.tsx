@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bookmark,
   Columns3,
   ExternalLink,
   RefreshCw,
   Search,
-  Sparkles,
+  ClipboardList,
   X,
   Code2,
 } from 'lucide-react';
@@ -20,19 +20,19 @@ import {
 } from '../ui/primitives';
 import { formatDateTime, formatRelativeDeadline, formatUsd } from '../../lib/utils';
 import { fetch } from '../../lib/api';
+import type { MusePackage } from '../../types/muse-package';
 import type {
   BountyRecord,
-  BountySnapshot,
   LeaderboardGapInsights,
 } from '../../types/command-center';
 
 interface BountyExplorerViewProps {
-  onOpenPromptStudio: (slug: string) => void;
+  onInspectBounty: (slug: string) => void;
   onDataMutated: () => void;
 }
 
 export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
-  onOpenPromptStudio,
+  onInspectBounty,
   onDataMutated,
 }) => {
   const [bounties, setBounties] = useState<BountyRecord[]>([]);
@@ -54,10 +54,20 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailData, setDetailData] = useState<{
     bounty: BountyRecord;
-    snapshot: BountySnapshot | null;
+    snapshot: { sourceEndpoint: string; fetchedAt: string; rawCompetition: unknown; rawRequirements: unknown } | null;
+    intelligence: MusePackage;
     leaderboardInsights?: LeaderboardGapInsights | null;
     refreshError?: string;
   } | null>(null);
+  const [detailError, setDetailError] = useState('');
+  const detailRequest = useRef<AbortController | null>(null);
+  const detailPanel = useRef<HTMLDivElement>(null);
+  useEffect(() => () => detailRequest.current?.abort(), []);
+  useEffect(() => {
+    if (!selectedSlug) return;
+    detailPanel.current?.focus({ preventScroll: true });
+    if (window.matchMedia('(width < 80rem)').matches) detailPanel.current?.scrollIntoView();
+  }, [selectedSlug]);
   const [showRawJson, setShowRawJson] = useState(false);
 
   const [compareSlugs, setCompareSlugs] = useState<string[]>([]);
@@ -123,26 +133,36 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
   };
 
   const openBountyDetail = async (slug: string, refresh = false) => {
+    detailRequest.current?.abort();
+    const request = new AbortController();
+    detailRequest.current = request;
+    if (slug !== selectedSlug) setDetailData(null);
     setSelectedSlug(slug);
     setDetailLoading(true);
+    setDetailError('');
     setShowRawJson(false);
     try {
-      const res = await fetch(`/api/bounties/${encodeURIComponent(slug)}${refresh ? '?refresh=1' : ''}`);
-      if (res.ok) {
-        const data = await res.json();
-        setDetailData(data);
-      }
+      const res = await fetch(`/api/bounties/${encodeURIComponent(slug)}${refresh ? '?refresh=1' : ''}`, { signal: request.signal });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not load this bounty.');
+      if (!request.signal.aborted) setDetailData(data);
+    } catch (error) {
+      if (!request.signal.aborted) setDetailError((error as Error).message);
     } finally {
-      setDetailLoading(false);
+      if (!request.signal.aborted) setDetailLoading(false);
     }
   };
 
   const toggleWatchlist = async (slug: string, current: boolean) => {
-    await fetch(`/api/bounties/${encodeURIComponent(slug)}/watchlist`, {
+    const response = await fetch(`/api/bounties/${encodeURIComponent(slug)}/watchlist`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ watchlisted: !current }),
     });
+    if (!response.ok) {
+      setSyncWarning((await response.json()).error || 'Could not update the watchlist.');
+      return;
+    }
     setBounties((prev) =>
       prev.map((b) => (b.slug === slug ? { ...b, watchlisted: !current } : b))
     );
@@ -178,8 +198,9 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
         (c) => c.applies !== false
       )
     : [];
-  const payoutCurve = Array.isArray(rawReq.payout_curve)
-    ? (rawReq.payout_curve as Array<{ place?: number; usd?: string | number; amount_usd?: string | number }>)
+  const payout = rawReq.payout_curve as { places?: unknown[] } | undefined;
+  const payoutCurve = Array.isArray(payout?.places ?? payout)
+    ? ((payout?.places ?? payout) as Array<{ place?: number; usd?: string | number; amount_usd?: string | number }>)
     : Array.isArray(rawComp.rewardsNow)
       ? (rawComp.rewardsNow as Array<{ place?: number; amountUsd?: string }>)
       : [];
@@ -353,8 +374,8 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                   <td className="px-4 py-2.5 text-[#9CA3AF]">Action</td>
                   {comparedBounties.map((b) => (
                     <td key={b.slug} className="px-4 py-2.5">
-                      <Button variant="primary" size="sm" onClick={() => onOpenPromptStudio(b.slug)}>
-                        Enhance in Studio
+                      <Button variant="primary" size="sm" onClick={() => onInspectBounty(b.slug)}>
+                        Inspect requirements
                       </Button>
                     </td>
                   ))}
@@ -367,7 +388,7 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
 
       {/* Split Workspace: Table + Detail Inspector */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        <Panel className={selectedSlug ? 'xl:col-span-7' : 'xl:col-span-12'}>
+        <Panel className={selectedSlug ? 'min-w-0 xl:col-span-7' : 'min-w-0 xl:col-span-12'}>
           <PanelHeader
             title={`Competitions (${bounties.length})`}
             subtitle="Click any competition to inspect full official rules, deliverables, checks, and snapshots"
@@ -417,7 +438,17 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                         }`}
                       >
                         <td className="px-4 py-3 min-w-[230px]">
-                          <div className="font-medium text-[#F3F4F6] line-clamp-1">{b.title}</div>
+                          <button
+                            type="button"
+                            className="line-clamp-1 cursor-pointer text-left font-medium text-[#F3F4F6] hover:text-blue-300 focus-visible:outline-2 focus-visible:outline-blue-400"
+                            aria-expanded={isSelected}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void openBountyDetail(b.slug);
+                            }}
+                          >
+                            {b.title}
+                          </button>
                           <div className="text-xs text-[#9CA3AF] mt-0.5">
                             {b.category} · {b.status}
                             {b.skills.length > 0 ? ` · ${b.skills.slice(0, 3).join(', ')}` : ''}
@@ -469,10 +500,10 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                             <Button
                               variant="secondary"
                               size="sm"
-                              onClick={() => onOpenPromptStudio(b.slug)}
+                              onClick={() => onInspectBounty(b.slug)}
                             >
-                              <Sparkles className="w-3.5 h-3.5" />
-                              <span>Enhance</span>
+                              <ClipboardList className="w-3.5 h-3.5" />
+                              <span>Inspect</span>
                             </Button>
                           </div>
                         </td>
@@ -485,7 +516,7 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
           )}
 
           {nextCursor && (
-            <div className="px-5 py-3.5 border-t border-white/[0.07] flex items-center justify-between">
+            <div className="px-5 py-3.5 border-t border-white/[0.07] flex flex-wrap items-center justify-between gap-3">
               <span className="text-xs text-[#9CA3AF]">More historical competitions available on make.fun</span>
               <Button variant="secondary" size="sm" onClick={handleLoadMore} disabled={loadingMore}>
                 {loadingMore ? 'Loading...' : 'Load Next Page'}
@@ -496,7 +527,8 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
 
         {/* Bounty Detail Inspector */}
         {selectedSlug && (
-          <Panel className="xl:col-span-5 xl:sticky xl:top-6 max-h-[calc(100vh-140px)] flex flex-col">
+          <Panel ref={detailPanel} tabIndex={-1} role="region" aria-label="Bounty details"
+            className="min-w-0 xl:col-span-5 xl:sticky xl:top-6 xl:max-h-[calc(100vh-140px)] flex flex-col">
             <PanelHeader
               title={detailData?.bounty.title || selectedSlug}
               subtitle={
@@ -512,17 +544,19 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                     onClick={() => openBountyDetail(selectedSlug, true)}
                     disabled={detailLoading}
                     title="Refresh official details"
+                    aria-label="Refresh official details"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${detailLoading ? 'animate-spin' : ''}`} />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedSlug(null)}>
+                  <Button variant="ghost" size="sm" aria-label="Close bounty details" onClick={() => { detailRequest.current?.abort(); setSelectedSlug(null); setDetailData(null); }}>
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
               }
             />
 
-            <div className="p-5 overflow-y-auto space-y-5 flex-1 text-xs">
+            <div className="min-w-0 p-5 xl:overflow-y-auto space-y-5 flex-1 text-xs [overflow-wrap:anywhere]">
+              {detailError && <p role="alert" className="text-red-300">{detailError}</p>}
               {detailLoading && !detailData ? (
                 <div className="space-y-3">
                   <div className="h-20 rounded bg-white/[0.04] animate-pulse" />
@@ -539,7 +573,7 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                     </div>
                     <div className="flex items-center gap-2">
                       <a
-                        href={detailData.bounty.url}
+                        href={detailData.intelligence.bounty.url}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 text-[#3B82F6] hover:underline"
@@ -550,10 +584,10 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                       <Button
                         variant="primary"
                         size="sm"
-                        onClick={() => onOpenPromptStudio(detailData.bounty.slug)}
+                        onClick={() => onInspectBounty(detailData.bounty.slug)}
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Open in Prompt Studio</span>
+                        <ClipboardList className="w-3.5 h-3.5" />
+                        <span>Inspect requirements & export</span>
                       </Button>
                     </div>
                   </div>
@@ -643,7 +677,7 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
                       Official Prompt & Rules Snapshot
                     </h3>
                     <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed bg-[#090B0E] border border-white/[0.07] rounded-md p-3 text-[#D1D5DB] max-h-60 overflow-y-auto">
-                      {detailData.snapshot?.officialPromptText ||
+                      {detailData.intelligence.officialPrompt ||
                         'Official description not returned in snapshot.'}
                     </pre>
                   </div>

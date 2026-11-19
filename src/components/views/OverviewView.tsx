@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Bookmark, RefreshCw, Sparkles, ExternalLink } from 'lucide-react';
+import { ArrowRight, Bookmark, RefreshCw, ExternalLink, ClipboardList } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -11,16 +11,13 @@ import {
 } from 'recharts';
 import { Button, EmptyState, Panel, PanelHeader, SyncStateIndicator } from '../ui/primitives';
 import { formatDateTime, formatRelativeDeadline, formatUsd } from '../../lib/utils';
-import type { AppSettings, BountyRecord, PromptVersionRecord } from '../../types/command-center';
+import type { AppSettings, BountyRecord } from '../../types/command-center';
 
 export interface OverviewData {
   totalSyncedBounties: number;
   openBountiesCount: number;
   openPoolTotalUsd: number;
   watchlistedCount: number;
-  draftCount: number;
-  versionCount: number;
-  analysisCount: number;
   evidenceCount: number;
   verifiedSubmissionsCount: number;
   rewardSummary: {
@@ -30,7 +27,6 @@ export interface OverviewData {
   };
   topOpenBounties: BountyRecord[];
   watchlistedBounties: BountyRecord[];
-  recentVersions: Array<PromptVersionRecord & { bountyTitle: string; bountyCategory: string }>;
   categoryBreakdown: Array<{ category: string; openCount: number; openPoolUsd: number }>;
   lastGlobalSyncAt: string | null;
   settings: AppSettings;
@@ -43,8 +39,7 @@ interface OverviewViewProps {
   error: string | null;
   onSyncNow: () => void;
   onOpenExplorer: () => void;
-  onOpenPromptStudio: (slug: string) => void;
-  onOpenModule: (tab: string) => void;
+  onInspectBounty: (slug: string) => void;
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
@@ -54,8 +49,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   error,
   onSyncNow,
   onOpenExplorer,
-  onOpenPromptStudio,
-  onOpenModule,
+  onInspectBounty,
 }) => {
   if (loading && !data) {
     return (
@@ -97,7 +91,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             COSMICLABS Command Overview
           </h1>
           <p className="text-xs text-[#9CA3AF] mt-1">
-            Account {data.settings.accountHandle} · Active LLM: {data.settings.provider === 'gemini' ? data.settings.model : data.settings.openaiCompatModel} · Last Sync: {data.lastGlobalSyncAt ? formatDateTime(data.lastGlobalSyncAt) : 'Not synced yet'}
+            Account {data.settings.accountHandle} · Last Sync: {data.lastGlobalSyncAt ? formatDateTime(data.lastGlobalSyncAt) : 'Not synced yet'}
           </p>
         </div>
         <div className="flex items-center gap-2.5">
@@ -105,12 +99,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
             <span>{syncing ? 'Syncing make.fun...' : 'Sync Bounties'}</span>
           </Button>
-          <Button variant="primary" size="sm" onClick={() => onOpenModule('enhancer')}>
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Open Prompt Studio</span>
-          </Button>
         </div>
       </div>
+
+      {error && <p className="text-sm text-amber-200" role="status">{error}</p>}
 
       {/* 4-Column Real Metrics Row (no fake stats) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -130,17 +122,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </Panel>
 
         <Panel className="p-5">
-          <p className="text-xs text-[#9CA3AF]">Prompt Studio & Versions</p>
+          <p className="text-xs text-[#9CA3AF]">Watchlisted Bounties</p>
           <div className="mt-2 flex items-baseline justify-between gap-2">
             <span className="text-2xl font-semibold font-mono tabular-nums text-[#F3F4F6]">
-              {data.versionCount}
-            </span>
-            <span className="text-xs text-[#9CA3AF] font-mono tabular-nums">
-              {data.draftCount} bounty drafts
+              {data.watchlistedCount}
             </span>
           </div>
           <p className="mt-2 text-xs text-[#6B7280] font-mono tabular-nums">
-            {data.analysisCount} AI analyses saved
+            Review pinned competitions and private notes
           </p>
         </Panel>
 
@@ -209,7 +198,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     <div className="flex items-center gap-2.5">
                       <button
                         type="button"
-                        onClick={() => onOpenPromptStudio(b.slug)}
+                        onClick={() => onInspectBounty(b.slug)}
                         className="text-sm font-medium text-[#F3F4F6] hover:text-[#3B82F6] transition-colors text-left truncate cursor-pointer"
                       >
                         {b.title}
@@ -231,10 +220,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => onOpenPromptStudio(b.slug)}
+                      onClick={() => onInspectBounty(b.slug)}
                     >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Enhance</span>
+                      <ClipboardList className="w-3.5 h-3.5" />
+                      <span>Inspect</span>
                     </Button>
                   </div>
                 </div>
@@ -291,8 +280,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </Panel>
       </div>
 
-      {/* Bottom Row: Watchlist & Recent Saved Prompt Versions */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      {/* Bottom Row: Watchlist */}
+      <div>
         <Panel>
           <PanelHeader
             title="Watchlisted Bounties"
@@ -316,7 +305,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           ) : (
             <div className="divide-y divide-white/[0.06]">
               {data.watchlistedBounties.map((b) => (
-                <div key={b.slug} className="px-5 py-3 flex items-center justify-between gap-4">
+                <div key={b.slug} className="px-5 py-3 flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-[#F3F4F6] truncate">{b.title}</p>
                     <p className="text-xs text-[#9CA3AF] mt-0.5 font-mono tabular-nums">
@@ -325,7 +314,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <a
-                      href={b.url}
+                      href={'https://make.fun/bounty/' + encodeURIComponent(b.slug)}
                       target="_blank"
                       rel="noreferrer"
                       className="p-2 text-[#9CA3AF] hover:text-[#F3F4F6] transition-colors"
@@ -333,8 +322,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
-                    <Button variant="secondary" size="sm" onClick={() => onOpenPromptStudio(b.slug)}>
-                      Studio
+                    <Button variant="secondary" size="sm" onClick={() => onInspectBounty(b.slug)}>
+                      Inspect
                     </Button>
                   </div>
                 </div>
@@ -343,50 +332,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           )}
         </Panel>
 
-        <Panel>
-          <PanelHeader
-            title="Recent Saved Prompt Versions"
-            subtitle="Append-only version history persisted in SQLite"
-            actions={
-              <Button variant="ghost" size="sm" onClick={() => onOpenModule('library')}>
-                <span>Open Library</span>
-              </Button>
-            }
-          />
-          {data.recentVersions.length === 0 ? (
-            <EmptyState
-              title="No enhanced prompt versions saved yet"
-              description="Select a bounty and click Enhance with AI in Prompt Studio to generate and save your first versioned master prompt."
-              action={
-                <Button variant="primary" size="sm" onClick={() => onOpenModule('enhancer')}>
-                  Go to Prompt Studio
-                </Button>
-              }
-            />
-          ) : (
-            <div className="divide-y divide-white/[0.06]">
-              {data.recentVersions.map((ver) => (
-                <div key={ver.id} className="px-5 py-3 flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-[#F3F4F6] truncate">
-                      {ver.bountyTitle} <span className="font-mono text-xs text-[#3B82F6]">v{ver.versionNumber}</span>
-                    </p>
-                    <p className="text-xs text-[#9CA3AF] mt-0.5 truncate">
-                      {ver.editSummary || 'Saved enhancement'} · {formatDateTime(ver.createdAt)}
-                    </p>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => onOpenPromptStudio(ver.bountySlug)}
-                  >
-                    Open
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </Panel>
       </div>
     </div>
   );

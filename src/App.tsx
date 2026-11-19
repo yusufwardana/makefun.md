@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Activity,
   Award,
-  BookOpen,
+  ClipboardList,
   Compass,
   FileCheck2,
   LayoutDashboard,
@@ -10,26 +10,22 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-  Sparkles,
   X,
 } from 'lucide-react';
 import { OverviewView, type OverviewData } from './components/views/OverviewView';
 import { BountyExplorerView } from './components/views/BountyExplorerView';
-import { PromptStudioView } from './components/views/PromptStudioView';
-import { PromptLibraryView } from './components/views/PromptLibraryView';
-import { HermesMonitorView } from './components/views/HermesMonitorView';
+import { BountyIntelligenceView } from './components/views/BountyIntelligenceView';
+import { EvidenceMonitorView } from './components/views/EvidenceMonitorView';
 import { SubmissionsView } from './components/views/SubmissionsView';
 import { RewardsAnalyticsView } from './components/views/RewardsAnalyticsView';
 import { SettingsView } from './components/views/SettingsView';
-import { Button } from './components/ui/primitives';
 import { fetch } from './lib/api';
 import type { AppSettings } from './types/command-center';
 
 type NavId =
   | 'overview'
   | 'explorer'
-  | 'enhancer'
-  | 'library'
+  | 'intelligence'
   | 'monitor'
   | 'submissions'
   | 'rewards'
@@ -42,9 +38,8 @@ const NAV_ITEMS: Array<{
 }> = [
   { id: 'overview', label: 'Overview', Icon: LayoutDashboard },
   { id: 'explorer', label: 'Bounty Explorer', Icon: Compass },
-  { id: 'enhancer', label: 'AI Prompt Enhancer', Icon: Sparkles },
-  { id: 'library', label: 'Prompt Library', Icon: BookOpen },
-  { id: 'monitor', label: 'Hermes Monitor', Icon: Activity },
+  { id: 'intelligence', label: 'Bounty Intelligence', Icon: ClipboardList },
+  { id: 'monitor', label: 'Evidence Monitor', Icon: Activity },
   { id: 'submissions', label: 'Submissions', Icon: FileCheck2 },
   { id: 'rewards', label: 'Rewards Analytics', Icon: Award },
   { id: 'settings', label: 'Settings', Icon: Settings },
@@ -55,7 +50,7 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const [studioSlug, setStudioSlug] = useState<string | null>(null);
+  const [intelligenceSlug, setIntelligenceSlug] = useState<string | null>(null);
   const [overviewData, setOverviewData] = useState<OverviewData | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [overviewError, setOverviewError] = useState<string | null>(null);
@@ -91,16 +86,20 @@ export default function App() {
   const handleGlobalSync = async () => {
     setSyncing(true);
     try {
-      await fetch('/api/bounties/sync', { method: 'POST' });
+      const response = await fetch('/api/bounties/sync', { method: 'POST' });
+      const result = await response.json();
       await fetchOverviewAndSettings();
+      if (!response.ok || result.error) setOverviewError(result.error || 'Could not sync bounties.');
+    } catch (error) {
+      setOverviewError((error as Error).message);
     } finally {
       setSyncing(false);
     }
   };
 
-  const openPromptStudioForBounty = (slug: string) => {
-    if (slug) setStudioSlug(slug);
-    setActiveTab('enhancer');
+  const inspectBounty = (slug: string) => {
+    if (slug) setIntelligenceSlug(slug);
+    setActiveTab('intelligence');
     setMobileMenuOpen(false);
   };
 
@@ -167,7 +166,7 @@ export default function App() {
 
       {/* Mobile Drawer Overlay */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
+        <div className="fixed inset-0 z-50 lg:hidden flex" onKeyDown={event => { if (event.key === 'Escape') setMobileMenuOpen(false); }}>
           <div
             className="fixed inset-0 bg-black/70"
             onClick={() => setMobileMenuOpen(false)}
@@ -181,6 +180,7 @@ export default function App() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="p-1.5 text-[#9CA3AF] hover:text-[#F3F4F6]"
                 aria-label="Close navigation"
+                autoFocus
               >
                 <X className="w-4 h-4" />
               </button>
@@ -224,23 +224,13 @@ export default function App() {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-2 text-xs whitespace-nowrap truncate">
+            <div className="flex min-w-0 items-center gap-2 text-xs whitespace-nowrap">
               <span className="text-[#6B7280]">COSMICLABS</span>
               <span className="text-[#4B5563]">/</span>
-              <span className="text-[#F3F4F6] font-medium">{activeNavLabel}</span>
+              <span className="truncate text-[#F3F4F6] font-medium">{activeNavLabel}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setActiveTab('enhancer')}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Enhance Prompt</span>
-            </Button>
-          </div>
         </header>
 
         <main className="flex-1 p-5 lg:p-6 max-w-[1440px] w-full mx-auto">
@@ -252,33 +242,29 @@ export default function App() {
               error={overviewError}
               onSyncNow={handleGlobalSync}
               onOpenExplorer={() => setActiveTab('explorer')}
-              onOpenPromptStudio={openPromptStudioForBounty}
-              onOpenModule={(tab) => setActiveTab(tab as NavId)}
+              onInspectBounty={inspectBounty}
             />
           )}
 
           {activeTab === 'explorer' && (
             <BountyExplorerView
-              onOpenPromptStudio={openPromptStudioForBounty}
+              onInspectBounty={inspectBounty}
               onDataMutated={fetchOverviewAndSettings}
             />
           )}
 
-          {activeTab === 'enhancer' && (
-            <PromptStudioView
-              initialSlug={studioSlug}
-              settings={settings}
+          {activeTab === 'intelligence' && (
+            <BountyIntelligenceView
+              initialSlug={intelligenceSlug}
+              onSelect={setIntelligenceSlug}
+              onBack={() => setActiveTab('explorer')}
+              onEvidence={() => setActiveTab('monitor')}
               onDataMutated={fetchOverviewAndSettings}
             />
           )}
 
-          {activeTab === 'library' && (
-            <PromptLibraryView onOpenPromptStudio={openPromptStudioForBounty} />
-          )}
-
-          {activeTab === 'monitor' && <HermesMonitorView />}
-
-          {activeTab === 'submissions' && <SubmissionsView />}
+          {activeTab === 'monitor' && <EvidenceMonitorView initialSlug={intelligenceSlug} onSubmissions={() => setActiveTab('submissions')} />}
+          {activeTab === 'submissions' && <SubmissionsView onRewards={() => setActiveTab('rewards')} />}
 
           {activeTab === 'rewards' && <RewardsAnalyticsView />}
 

@@ -125,7 +125,7 @@ function extractRecordsFromContent(rawContent: string): {
         const t = Date.parse(tsMatch[0]);
         if (Number.isFinite(t)) timestamps.push(t);
       }
-      const isAssistant = /\b(assistant|hermes|model)\b/i.test(line);
+      const isAssistant = /\b(assistant|hermes|muse|model)\b/i.test(line);
       const isEdit = /(write|edit|patch|main\.py|main\.ts)/i.test(line);
       records.push({
         role: isAssistant ? 'assistant' : 'log',
@@ -166,7 +166,7 @@ export function evaluateTranscriptGates(params: {
 
   // Check window if bounty dates supplied
   let windowStatus: TranscriptGateCheckResult['status'] = 'warn';
-  let windowDetail = 'Link a bounty in Hermes Monitor to verify timestamps against its publishedAt window.';
+  let windowDetail = 'Link a bounty in Evidence Monitor to verify timestamps against its publishedAt window.';
   if (params.competitionPublishedAt && timestamps.length > 0) {
     const openTs = Date.parse(params.competitionPublishedAt) - 60_000;
     const closeTs = params.competitionDeadline ? Date.parse(params.competitionDeadline) + 60_000 : Number.MAX_SAFE_INTEGER;

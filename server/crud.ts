@@ -1,42 +1,29 @@
 import crypto from 'crypto';
-import { count, desc, eq, max, or, sql } from 'drizzle-orm';
+import { count, desc, eq, or, sql } from 'drizzle-orm';
 import {
   type CommandCenterDatabase,
-  mapAnalysisRecord,
   mapBountyRecord,
   mapEvidenceRecord,
-  mapPromptDraftRecord,
-  mapPromptVersionRecord,
   mapRewardRecord,
   mapSnapshotRecord,
   mapSubmissionRecord,
   orm as defaultOrm,
 } from './db.ts';
 import {
-  aiAnalyses,
   appSettings,
   bounties,
   bountySnapshots,
   hermesEvidence,
-  promptDrafts,
-  promptVersions,
   rewards,
   submissions,
 } from './schema.ts';
 import type {
-  AIAnalysisRecord,
   AppSettings,
   BountyRecord,
   BountySnapshot,
   ClaimStatus,
-  HermesEvidenceRecord,
-  LLMProviderId,
+  EvidenceRecord,
   PrerequisitesData,
-  PriorityItem,
-  PromptDraftRecord,
-  PromptVersionRecord,
-  RecommendedSkill,
-  ResearchReference,
   RewardRecord,
   SubmissionRecord,
   SubmissionStatus,
@@ -89,48 +76,6 @@ export interface SaveSnapshotInput {
   contentHash: string;
 }
 
-export interface CreateAIAnalysisInput {
-  id?: string;
-  bountySlug: string;
-  provider: LLMProviderId;
-  model: string;
-  stageStatus: string;
-  objectiveSummary: string;
-  mandatoryRequirements: string[];
-  judgingCriteria: string[];
-  recommendedApproach: string;
-  differentiationStrategy: string;
-  architectureOrMethodology: string;
-  priorityMatrix: PriorityItem[];
-  implementationGuidance: string[];
-  qualityStandards: string[];
-  testingValidation: string[];
-  complianceConsiderations: string[];
-  assumptionsUncertainties: string[];
-  risks: string[];
-  researchReferences: ResearchReference[];
-  researchDisclosures: string;
-  recommendedSkills?: RecommendedSkill[];
-  rawLlmResponse: string;
-  tokenUsage: AIAnalysisRecord['tokenUsage'];
-  createdAt?: string;
-}
-
-export interface CreatePromptVersionInput {
-  bountySlug: string;
-  bountyTitle: string;
-  analysisId?: string | null;
-  part1OriginalPrompt: string;
-  part2AiEnhancement: string;
-  part3ExecutionGuidelines: string;
-  founderInstructions?: string;
-  selectedSkills?: RecommendedSkill[];
-  fullMarkdown: string;
-  editSummary?: string;
-  founderNotes?: string;
-  createdBy?: string;
-}
-
 export interface UpsertSubmissionInput {
   id: string;
   bountySlug: string;
@@ -161,12 +106,12 @@ export interface CreateRewardInput {
 export interface CreateEvidenceInput {
   id?: string;
   bountySlug?: string | null;
-  sourceType: HermesEvidenceRecord['sourceType'];
+  sourceType: EvidenceRecord['sourceType'];
   sourcePathOrName: string;
   sessionId?: string | null;
   summary: string;
   rawContent: string;
-  metadata: HermesEvidenceRecord['metadata'];
+  metadata: EvidenceRecord['metadata'];
   importedAt?: string;
 }
 
@@ -431,270 +376,6 @@ export function createCommandCenterCrud(ormDb: CommandCenterDatabase) {
     return getLatestBountySnapshot(input.bountySlug)!;
   }
 
-  function upsertManualPromptOverride(slug: string, manualPromptText: string): BountySnapshot {
-    const trimmed = manualPromptText.trim();
-    const latest = ormDb
-      .select()
-      .from(bountySnapshots)
-      .where(eq(bountySnapshots.bountySlug, slug))
-      .orderBy(desc(bountySnapshots.id))
-      .limit(1)
-      .get();
-
-    if (latest) {
-      ormDb
-        .update(bountySnapshots)
-        .set({ manualPromptOverride: trimmed })
-        .where(eq(bountySnapshots.id, latest.id))
-        .run();
-    } else {
-      ormDb
-        .insert(bountySnapshots)
-        .values({
-          bountySlug: slug,
-          sourceEndpoint: 'manual_verified_paste',
-          rawCompetitionJson: null,
-          rawRequirementsJson: null,
-          rawLeaderboardJson: null,
-          rawKitJson: null,
-          officialPromptText: '',
-          manualPromptOverride: trimmed,
-          fetchedAt: new Date().toISOString(),
-          contentHash: crypto.createHash('sha256').update(trimmed).digest('hex').slice(0, 16),
-        })
-        .run();
-    }
-
-    return getLatestBountySnapshot(slug)!;
-  }
-
-  // =========================================================================
-  // AI Analyses CRUD
-  // =========================================================================
-  function createAIAnalysis(input: CreateAIAnalysisInput): AIAnalysisRecord {
-    const id = input.id || crypto.randomUUID();
-    const createdAt = input.createdAt || new Date().toISOString();
-
-    const row = ormDb
-      .insert(aiAnalyses)
-      .values({
-        id,
-        bountySlug: input.bountySlug,
-        provider: input.provider,
-        model: input.model,
-        stageStatus: input.stageStatus,
-        objectiveSummary: input.objectiveSummary,
-        mandatoryRequirementsJson: JSON.stringify(input.mandatoryRequirements),
-        judgingCriteriaJson: JSON.stringify(input.judgingCriteria),
-        recommendedApproach: input.recommendedApproach,
-        differentiationStrategy: input.differentiationStrategy,
-        architectureOrMethodology: input.architectureOrMethodology,
-        priorityMatrixJson: JSON.stringify(input.priorityMatrix),
-        implementationGuidanceJson: JSON.stringify(input.implementationGuidance),
-        qualityStandardsJson: JSON.stringify(input.qualityStandards),
-        testingValidationJson: JSON.stringify(input.testingValidation),
-        complianceConsiderationsJson: JSON.stringify(input.complianceConsiderations),
-        assumptionsUncertaintiesJson: JSON.stringify(input.assumptionsUncertainties),
-        risksJson: JSON.stringify(input.risks),
-        researchReferencesJson: JSON.stringify(input.researchReferences),
-        researchDisclosures: input.researchDisclosures,
-        recommendedSkillsJson: input.recommendedSkills
-          ? JSON.stringify(input.recommendedSkills)
-          : null,
-        rawLlmResponse: input.rawLlmResponse,
-        tokenUsageJson: input.tokenUsage ? JSON.stringify(input.tokenUsage) : null,
-        createdAt,
-      })
-      .returning()
-      .get();
-
-    return mapAnalysisRecord(row);
-  }
-
-  function getAIAnalysisById(id: string): AIAnalysisRecord | null {
-    const row = ormDb.select().from(aiAnalyses).where(eq(aiAnalyses.id, id)).get();
-    return row ? mapAnalysisRecord(row) : null;
-  }
-
-  function listAIAnalysesByBounty(slug: string): AIAnalysisRecord[] {
-    const rows = ormDb
-      .select()
-      .from(aiAnalyses)
-      .where(eq(aiAnalyses.bountySlug, slug))
-      .orderBy(desc(aiAnalyses.createdAt))
-      .all();
-    return rows.map(mapAnalysisRecord);
-  }
-
-  function deleteAIAnalysis(id: string): boolean {
-    const res = ormDb.delete(aiAnalyses).where(eq(aiAnalyses.id, id)).run();
-    return res.changes > 0;
-  }
-
-  // =========================================================================
-  // Prompt Drafts & Append-Only Versions CRUD
-  // =========================================================================
-  function listPromptDraftsWithLatest(): PromptDraftRecord[] {
-    const rows = ormDb
-      .select({
-        draft: promptDrafts,
-        bountyTitle: bounties.title,
-        bountyCategory: bounties.category,
-      })
-      .from(promptDrafts)
-      .leftJoin(bounties, eq(bounties.slug, promptDrafts.bountySlug))
-      .orderBy(desc(promptDrafts.updatedAt))
-      .all();
-
-    return rows.map(({ draft, bountyTitle, bountyCategory }) => {
-      const mapped = mapPromptDraftRecord(draft, { bountyTitle, bountyCategory });
-      const countRow = ormDb
-        .select({ c: count() })
-        .from(promptVersions)
-        .where(eq(promptVersions.draftId, mapped.id))
-        .get();
-      const latestVer = mapped.latestVersionId
-        ? ormDb
-            .select()
-            .from(promptVersions)
-            .where(eq(promptVersions.id, mapped.latestVersionId))
-            .get()
-        : undefined;
-      mapped.versionCount = Number(countRow?.c || 0);
-      mapped.latestVersion = latestVer ? mapPromptVersionRecord(latestVer) : null;
-      return mapped;
-    });
-  }
-
-  function getPromptDraftAndVersionsBySlug(slug: string): {
-    draft: PromptDraftRecord | null;
-    versions: PromptVersionRecord[];
-  } {
-    const joined = ormDb
-      .select({
-        draft: promptDrafts,
-        bountyTitle: bounties.title,
-        bountyCategory: bounties.category,
-      })
-      .from(promptDrafts)
-      .leftJoin(bounties, eq(bounties.slug, promptDrafts.bountySlug))
-      .where(eq(promptDrafts.bountySlug, slug))
-      .get();
-
-    const versionRows = ormDb
-      .select()
-      .from(promptVersions)
-      .where(eq(promptVersions.bountySlug, slug))
-      .orderBy(desc(promptVersions.versionNumber))
-      .all();
-
-    return {
-      draft: joined
-        ? mapPromptDraftRecord(joined.draft, {
-            bountyTitle: joined.bountyTitle,
-            bountyCategory: joined.bountyCategory,
-          })
-        : null,
-      versions: versionRows.map(mapPromptVersionRecord),
-    };
-  }
-
-  function createPromptVersionTransactional(input: CreatePromptVersionInput): {
-    draft: PromptDraftRecord;
-    version: PromptVersionRecord;
-  } {
-    return ormDb.transaction((tx) => {
-      const nowIso = new Date().toISOString();
-      let draftRow = tx
-        .select()
-        .from(promptDrafts)
-        .where(eq(promptDrafts.bountySlug, input.bountySlug))
-        .get();
-
-      let draftId: string;
-      if (!draftRow) {
-        draftId = crypto.randomUUID();
-        draftRow = tx
-          .insert(promptDrafts)
-          .values({
-            id: draftId,
-            bountySlug: input.bountySlug,
-            title: input.bountyTitle,
-            latestVersionId: null,
-            founderNotes: input.founderNotes || '',
-            createdAt: nowIso,
-            updatedAt: nowIso,
-          })
-          .returning()
-          .get();
-      } else {
-        draftId = draftRow.id;
-      }
-
-      const maxRow = tx
-        .select({ maxVer: max(promptVersions.versionNumber) })
-        .from(promptVersions)
-        .where(eq(promptVersions.draftId, draftId))
-        .get();
-      const nextVersionNumber = Number(maxRow?.maxVer || 0) + 1;
-      const versionId = crypto.randomUUID();
-
-      const savedVersion = tx
-        .insert(promptVersions)
-        .values({
-          id: versionId,
-          draftId,
-          bountySlug: input.bountySlug,
-          versionNumber: nextVersionNumber,
-          analysisId: input.analysisId ?? null,
-          part1OriginalPrompt: input.part1OriginalPrompt,
-          part2AiEnhancement: input.part2AiEnhancement,
-          part3ExecutionGuidelines: input.part3ExecutionGuidelines,
-          founderInstructions: input.founderInstructions || '',
-          selectedSkillsJson: input.selectedSkills
-            ? JSON.stringify(input.selectedSkills)
-            : null,
-          fullMarkdown: input.fullMarkdown,
-          editSummary: input.editSummary || `Version ${nextVersionNumber}`,
-          createdBy: input.createdBy || 'Founder',
-          createdAt: nowIso,
-        })
-        .returning()
-        .get();
-
-      const savedDraft = tx
-        .update(promptDrafts)
-        .set({
-          latestVersionId: versionId,
-          founderNotes: input.founderNotes ?? draftRow.founderNotes,
-          updatedAt: nowIso,
-        })
-        .where(eq(promptDrafts.id, draftId))
-        .returning()
-        .get();
-
-      return {
-        draft: mapPromptDraftRecord(savedDraft),
-        version: mapPromptVersionRecord(savedVersion),
-      };
-    });
-  }
-
-  function updatePromptDraftNotes(slug: string, founderNotes: string): PromptDraftRecord | null {
-    const row = ormDb
-      .update(promptDrafts)
-      .set({ founderNotes, updatedAt: new Date().toISOString() })
-      .where(eq(promptDrafts.bountySlug, slug))
-      .returning()
-      .get();
-    return row ? mapPromptDraftRecord(row) : null;
-  }
-
-  function deletePromptDraft(slug: string): boolean {
-    const res = ormDb.delete(promptDrafts).where(eq(promptDrafts.bountySlug, slug)).run();
-    return res.changes > 0;
-  }
-
   // =========================================================================
   // Submissions CRUD
   // =========================================================================
@@ -936,9 +617,9 @@ export function createCommandCenterCrud(ormDb: CommandCenterDatabase) {
   }
 
   // =========================================================================
-  // Hermes Evidence CRUD
+  // Evidence CRUD
   // =========================================================================
-  function listEvidence(): HermesEvidenceRecord[] {
+  function listEvidence(): EvidenceRecord[] {
     const rows = ormDb
       .select()
       .from(hermesEvidence)
@@ -947,12 +628,12 @@ export function createCommandCenterCrud(ormDb: CommandCenterDatabase) {
     return rows.map(mapEvidenceRecord);
   }
 
-  function getEvidenceById(id: string): HermesEvidenceRecord | null {
+  function getEvidenceById(id: string): EvidenceRecord | null {
     const row = ormDb.select().from(hermesEvidence).where(eq(hermesEvidence.id, id)).get();
     return row ? mapEvidenceRecord(row) : null;
   }
 
-  function findEvidenceBySourcePath(sourcePathOrName: string): HermesEvidenceRecord | null {
+  function findEvidenceBySourcePath(sourcePathOrName: string): EvidenceRecord | null {
     const row = ormDb
       .select()
       .from(hermesEvidence)
@@ -962,7 +643,7 @@ export function createCommandCenterCrud(ormDb: CommandCenterDatabase) {
     return row ? mapEvidenceRecord(row) : null;
   }
 
-  function createEvidence(input: CreateEvidenceInput): HermesEvidenceRecord {
+  function createEvidence(input: CreateEvidenceInput): EvidenceRecord {
     const id = input.id || crypto.randomUUID();
     const importedAt = input.importedAt || new Date().toISOString();
 
@@ -1011,9 +692,6 @@ export function createCommandCenterCrud(ormDb: CommandCenterDatabase) {
     const openBounties = allBounties.filter((b) => b.status === 'open' || b.acceptingSubmissions);
     const watchlisted = allBounties.filter((b) => b.watchlisted);
 
-    const draftCount = Number(ormDb.select({ c: count() }).from(promptDrafts).get()?.c || 0);
-    const versionCount = Number(ormDb.select({ c: count() }).from(promptVersions).get()?.c || 0);
-    const analysisCount = Number(ormDb.select({ c: count() }).from(aiAnalyses).get()?.c || 0);
     const evidenceCount = Number(ormDb.select({ c: count() }).from(hermesEvidence).get()?.c || 0);
     const submissionCount = Number(ormDb.select({ c: count() }).from(submissions).get()?.c || 0);
 
@@ -1031,24 +709,6 @@ export function createCommandCenterCrud(ormDb: CommandCenterDatabase) {
       totalVerifiedAwarded: Number(rewardSummaryRow?.totalVerifiedAwarded || 0),
       totalReceived: Number(rewardSummaryRow?.totalReceived || 0),
     };
-
-    const recentVersionsRows = ormDb
-      .select({
-        version: promptVersions,
-        bountyTitle: bounties.title,
-        bountyCategory: bounties.category,
-      })
-      .from(promptVersions)
-      .leftJoin(bounties, eq(bounties.slug, promptVersions.bountySlug))
-      .orderBy(desc(promptVersions.createdAt))
-      .limit(6)
-      .all();
-
-    const recentVersions = recentVersionsRows.map(({ version, bountyTitle, bountyCategory }) => ({
-      ...mapPromptVersionRecord(version),
-      bountyTitle: bountyTitle || version.bountySlug,
-      bountyCategory: bountyCategory || 'General',
-    }));
 
     const categoryBreakdownMap = new Map<
       string,
@@ -1070,15 +730,11 @@ export function createCommandCenterCrud(ormDb: CommandCenterDatabase) {
       openBountiesCount: openBounties.length,
       openPoolTotalUsd: openBounties.reduce((acc, b) => acc + (b.potUsd || b.rewardAmount), 0),
       watchlistedCount: watchlisted.length,
-      draftCount,
-      versionCount,
-      analysisCount,
       evidenceCount,
       verifiedSubmissionsCount: submissionCount,
       rewardSummary,
       topOpenBounties: openBounties.slice(0, 6),
       watchlistedBounties: watchlisted.slice(0, 6),
-      recentVersions,
       categoryBreakdown: Array.from(categoryBreakdownMap.values()),
       lastGlobalSyncAt: getSettingValue('lastGlobalSyncAt') || null,
       settings,
@@ -1101,18 +757,6 @@ export function createCommandCenterCrud(ormDb: CommandCenterDatabase) {
     getLatestBountySnapshot,
     hasAnyBountySnapshot,
     saveBountySnapshot,
-    upsertManualPromptOverride,
-    // AI Analyses
-    createAIAnalysis,
-    getAIAnalysisById,
-    listAIAnalysesByBounty,
-    deleteAIAnalysis,
-    // Prompt Drafts & Versions
-    listPromptDraftsWithLatest,
-    getPromptDraftAndVersionsBySlug,
-    createPromptVersionTransactional,
-    updatePromptDraftNotes,
-    deletePromptDraft,
     // Submissions
     listSubmissions,
     getSubmissionById,

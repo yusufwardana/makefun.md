@@ -6,27 +6,16 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { z } from 'zod';
 import { crud } from './server/crud.ts';
-import { AVAILABLE_MODELS, safeJsonParse } from './server/db.ts';
-import {
-  LLMConfigurationError,
-  resolveRuntimeLLMConfig,
-  runBountyEnhancementWorkflow,
-  testLLMConnection,
-  validateModelAuthorization,
-} from './server/llm.ts';
+import { safeJsonParse } from './server/db.ts';
 import {
   createRateLimiter,
   enforceSameOriginCsrf,
-  getAllowedOpenAICompatHosts,
-  getDailyLlmRequestCap,
-  getMaxLlmOutputTokens,
+  isWithinWorkspace,
   getOperatorAuthToken,
-  isServerPaidLlmAuthorized,
   requireOperatorAuth,
-  SecurityPolicyError,
-  validateOpenAICompatBaseUrl,
 } from './server/security.ts';
-import { buildMasterMarkdown } from './src/lib/prompt-builder.ts';
+import { buildMusePackage, formatMuseMarkdown } from './server/muse-handoff.ts';
+import { bountySlugSchema } from './src/types/muse-package.ts';
 import {
   computeEffectiveSyncState,
   extractLeaderboardInsights,
@@ -40,19 +29,8 @@ const PORT = Number(process.env.PORT || 3000);
 const BIND_HOST = process.env.HOST?.trim() || (process.env.K_SERVICE ? '0.0.0.0' : '127.0.0.1');
 
 function buildSettingsResponse(): AppSettings {
-  const resolved = resolveRuntimeLLMConfig();
   return {
-    provider: resolved.provider,
-    model: resolved.geminiModel,
-    openaiCompatBaseUrl: resolved.openaiCompatBaseUrl,
-    openaiCompatModel: resolved.openaiCompatModel,
-    allowPaidRequests: resolved.allowPaidRequests,
-    paidPolicySource: 'server_env',
     authRequired: Boolean(getOperatorAuthToken()),
-    allowedOpenAICompatHosts: Array.from(getAllowedOpenAICompatHosts()),
-    dailyLlmCap: getDailyLlmRequestCap(),
-    maxLlmOutputTokens: getMaxLlmOutputTokens(),
-    enableSearchGrounding: resolved.enableSearchGrounding,
     syncIntervalMinutes: Number(crud.getSettingValue('syncIntervalMinutes') || 30),
     accountHandle: crud.getSettingValue('accountHandle') || '@0xkeinara',
     permittedEvidencePaths: safeJsonParse<string[]>(
@@ -61,16 +39,9 @@ function buildSettingsResponse(): AppSettings {
     ),
     lastGlobalSyncAt: crud.getSettingValue('lastGlobalSyncAt') || null,
     nextCursor: crud.getSettingValue('nextCursor') || null,
-    credentialStatus: {
-      geminiKeyConfigured: Boolean(process.env.GEMINI_API_KEY?.trim() || crud.getSettingValue('geminiApiKey')?.trim()),
-      openaiCompatKeyConfigured: Boolean(process.env.OPENAI_COMPAT_API_KEY?.trim() || crud.getSettingValue('openaiCompatApiKey')?.trim()),
-    },
-    availableModels: AVAILABLE_MODELS,
   };
 }
 
-const enhancerLimiter = createRateLimiter({ bucket: 'enhancer', windowMs: 60_000, maxRequests: 12 });
-const llmTestLimiter = createRateLimiter({ bucket: 'llm-test', windowMs: 60_000, maxRequests: 15 });
 const settingsLimiter = createRateLimiter({ bucket: 'settings', windowMs: 60_000, maxRequests: 30 });
 
 async function startServer() {
@@ -149,6 +120,10 @@ async function startServer() {
 
   app.get('/api/bounties/:slug', async (req, res) => {
     const { slug } = req.params;
+    if (!bountySlugSchema.safeParse(slug).success) {
+      res.status(400).json({ error: 'Invalid bounty identifier.' });
+      return;
+    }
     const forceRefresh = req.query.refresh === '1';
 
     let bounty = crud.getBountyBySlug(slug);
@@ -169,8 +144,6 @@ async function startServer() {
 
     bounty.syncState = computeEffectiveSyncState(bounty);
 
-    const analyses = crud.listAIAnalysesByBounty(slug);
-    const { draft, versions } = crud.getPromptDraftAndVersionsBySlug(slug);
     const leaderboardInsights = extractLeaderboardInsights(
       snapshot?.rawLeaderboard ?? null,
       snapshot?.rawCompetition ?? null,
@@ -179,13 +152,48 @@ async function startServer() {
 
     res.json({
       bounty,
-      snapshot,
+      snapshot: snapshot && {
+        sourceEndpoint: snapshot.sourceEndpoint,
+        fetchedAt: snapshot.fetchedAt,
+        rawCompetition: snapshot.rawCompetition,
+        rawRequirements: snapshot.rawRequirements,
+      },
       leaderboardInsights,
-      analyses,
-      draft,
-      versions,
+      intelligence: buildMusePackage(bounty, snapshot, leaderboardInsights),
       refreshError,
     });
+  });
+
+  app.get('/api/bounties/:slug/muse-export', requireOperatorAuth, (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const input = z.strictObject({
+      format: z.enum(['json', 'markdown']),
+      checksum: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(),
+    }).safeParse(req.query);
+    const slug = bountySlugSchema.safeParse(req.params.slug);
+    if (!input.success || !slug.success) {
+      res.status(400).json({ error: 'Invalid bounty identifier or export options.' });
+      return;
+    }
+    const bounty = crud.getBountyBySlug(slug.data);
+    if (!bounty) {
+      res.status(404).json({ error: 'Bounty not found in the local records.' });
+      return;
+    }
+    const snapshot = crud.getLatestBountySnapshot(slug.data);
+    const insights = extractLeaderboardInsights(
+      snapshot?.rawLeaderboard ?? null, snapshot?.rawCompetition ?? null, ''
+    );
+    const pkg = buildMusePackage(bounty, snapshot, insights);
+    if (input.data.checksum && input.data.checksum !== pkg.sourceProvenance.contentChecksum) {
+      res.status(409).json({ error: 'The snapshot changed. Reload the bounty details before exporting.' });
+      return;
+    }
+    if (input.data.format === 'markdown') {
+      res.attachment('MUSE_BOUNTY_CONTEXT.md').type('text/markdown').send(formatMuseMarkdown(pkg));
+      return;
+    }
+    res.attachment('MUSE_BOUNTY_CONTEXT.json').type('application/json').send(JSON.stringify(pkg, null, 2) + '\n');
   });
 
   app.patch('/api/bounties/:slug/watchlist', (req, res) => {
@@ -218,152 +226,7 @@ async function startServer() {
     res.json({ ok: true });
   });
 
-  app.post('/api/bounties/:slug/manual-prompt', (req, res) => {
-    const { slug } = req.params;
-    const body = z.object({ manualPromptText: z.string().min(10) }).safeParse(req.body);
-    if (!body.success) {
-      res.status(400).json({ error: 'Manual prompt must be at least 10 characters.' });
-      return;
-    }
-    const bounty = crud.getBountyBySlug(slug);
-    if (!bounty) {
-      res.status(404).json({ error: 'Bounty not found.' });
-      return;
-    }
-
-    const snapshot = crud.upsertManualPromptOverride(slug, body.data.manualPromptText);
-    res.json({ ok: true, snapshot });
-  });
-
-  // CORE FEATURE: Genuine LLM Enhancement Workflow
-  app.post('/api/enhancer/run', enhancerLimiter, async (req, res) => {
-    const schema = z.object({
-      slug: z.string().min(1),
-      provider: z.enum(['gemini', 'openai_compatible']).optional(),
-      model: z.string().optional(),
-      enableGrounding: z.boolean().optional(),
-      founderInstructions: z.string().optional(),
-    });
-    const parsed = schema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid enhancer request payload.' });
-      return;
-    }
-
-    const { slug, provider, model, enableGrounding, founderInstructions } = parsed.data;
-
-    let bounty = crud.getBountyBySlug(slug);
-    let snapshot = crud.getLatestBountySnapshot(slug);
-
-    if (!bounty || !snapshot || !snapshot.rawRequirements) {
-      await syncSingleBountyDetails(slug);
-      bounty = crud.getBountyBySlug(slug);
-      snapshot = crud.getLatestBountySnapshot(slug);
-    }
-
-    if (!bounty) {
-      res.status(404).json({ error: `Bounty "${slug}" not found.` });
-      return;
-    }
-
-    bounty.syncState = computeEffectiveSyncState(bounty);
-
-    try {
-      const result = await runBountyEnhancementWorkflow({
-        bounty,
-        snapshot,
-        providerOverride: provider,
-        modelOverride: model,
-        enableGroundingOverride: enableGrounding,
-        founderInstructions,
-      });
-      res.json(result);
-    } catch (err) {
-      if (err instanceof LLMConfigurationError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      res.status(500).json({
-        error: err instanceof Error ? err.message : 'Unexpected LLM workflow error.',
-      });
-    }
-  });
-
-  // Prompts & Append-Only Version History
-  app.get('/api/prompts', (_req, res) => {
-    res.json({ drafts: crud.listPromptDraftsWithLatest() });
-  });
-
-  app.get('/api/prompts/:slug', (req, res) => {
-    res.json(crud.getPromptDraftAndVersionsBySlug(req.params.slug));
-  });
-
-  app.post('/api/prompts/:slug/versions', (req, res) => {
-    const { slug } = req.params;
-    const skillSchema = z.object({
-      id: z.string(),
-      name: z.string().min(1),
-      category: z.string().min(1),
-      source: z.enum(['official_bounty', 'official_mcp', 'ai_curated', 'founder_custom']),
-      priority: z.enum(['essential', 'recommended', 'optional']),
-      rationale: z.string(),
-      agentDirective: z.string(),
-      enabled: z.boolean(),
-    });
-    const schema = z.object({
-      analysisId: z.string().nullable().optional(),
-      part1OriginalPrompt: z.string().min(10),
-      part2AiEnhancement: z.string().min(10),
-      part3ExecutionGuidelines: z.string().min(10),
-      founderInstructions: z.string().optional().default(''),
-      selectedSkills: z.array(skillSchema).optional().default([]),
-      editSummary: z.string().optional().default(''),
-      founderNotes: z.string().optional().default(''),
-      createdBy: z.string().optional().default('Founder'),
-    });
-
-    const parsed = schema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid prompt version payload.' });
-      return;
-    }
-
-    const bounty = crud.getBountyBySlug(slug);
-    if (!bounty) {
-      res.status(404).json({ error: `Bounty "${slug}" not found.` });
-      return;
-    }
-
-    const fullMarkdown = buildMasterMarkdown({
-      bountyTitle: bounty.title,
-      bountySlug: bounty.slug,
-      bountyUrl: bounty.url,
-      part1OriginalPrompt: parsed.data.part1OriginalPrompt,
-      part2AiEnhancement: parsed.data.part2AiEnhancement,
-      part3ExecutionGuidelines: parsed.data.part3ExecutionGuidelines,
-      founderInstructions: parsed.data.founderInstructions,
-      selectedSkills: parsed.data.selectedSkills,
-    });
-
-    const result = crud.createPromptVersionTransactional({
-      bountySlug: slug,
-      bountyTitle: bounty.title,
-      analysisId: parsed.data.analysisId ?? null,
-      part1OriginalPrompt: parsed.data.part1OriginalPrompt,
-      part2AiEnhancement: parsed.data.part2AiEnhancement,
-      part3ExecutionGuidelines: parsed.data.part3ExecutionGuidelines,
-      founderInstructions: parsed.data.founderInstructions,
-      selectedSkills: parsed.data.selectedSkills,
-      fullMarkdown,
-      editSummary: parsed.data.editSummary,
-      founderNotes: parsed.data.founderNotes,
-      createdBy: parsed.data.createdBy,
-    });
-
-    res.status(201).json(result);
-  });
-
-  // Hermes Read-Only Evidence Monitor
+  // Read-only evidence monitor
   app.get('/api/evidence', (_req, res) => {
     res.json({
       evidence: crud.listEvidence(),
@@ -419,13 +282,13 @@ async function startServer() {
       crud.getSettingValue('permittedEvidencePaths'),
       ['./evidence']
     );
-    const workspaceRoot = process.cwd();
+    const workspaceRoot = fs.realpathSync(process.cwd());
     const scannedFiles: Array<{ path: string; size: number; modifiedAt: string }> = [];
     const skippedPaths: Array<{ path: string; reason: string }> = [];
 
     for (const relOrAbs of permittedPaths) {
       const resolved = path.resolve(workspaceRoot, relOrAbs);
-      if (!resolved.startsWith(workspaceRoot)) {
+      if (!isWithinWorkspace(workspaceRoot, resolved)) {
         skippedPaths.push({ path: relOrAbs, reason: 'Outside workspace directory boundary' });
         continue;
       }
@@ -433,16 +296,22 @@ async function startServer() {
         skippedPaths.push({ path: relOrAbs, reason: 'Directory does not exist on disk' });
         continue;
       }
-      const stat = fs.statSync(resolved);
+      const realDirectory = fs.realpathSync(resolved);
+      if (!isWithinWorkspace(workspaceRoot, realDirectory)) {
+        skippedPaths.push({ path: relOrAbs, reason: 'Outside workspace directory boundary' });
+        continue;
+      }
+      const stat = fs.statSync(realDirectory);
       if (!stat.isDirectory()) {
         skippedPaths.push({ path: relOrAbs, reason: 'Path is not a directory' });
         continue;
       }
-      const entries = fs.readdirSync(resolved, { withFileTypes: true });
+      const entries = fs.readdirSync(realDirectory, { withFileTypes: true });
       for (const entry of entries.slice(0, 25)) {
         if (!entry.isFile()) continue;
         if (!/\.(json|jsonl|log|md|txt)$/i.test(entry.name)) continue;
-        const fullFile = path.join(resolved, entry.name);
+        const fullFile = fs.realpathSync(path.join(realDirectory, entry.name));
+        if (!isWithinWorkspace(workspaceRoot, fullFile)) continue;
         const fStat = fs.statSync(fullFile);
         const content = fs.readFileSync(fullFile, 'utf8').slice(0, 150000);
         const relPath = path.relative(workspaceRoot, fullFile);
@@ -498,6 +367,10 @@ async function startServer() {
 
     let publishedAt: string | null = null;
     let deadline: string | null = null;
+    if (targetSlug && evidenceItem.bountySlug && evidenceItem.bountySlug !== targetSlug) {
+      res.status(400).json({ error: 'Evidence is linked to a different bounty.' });
+      return;
+    }
     if (targetSlug) {
       const bounty = crud.getBountyBySlug(targetSlug);
       if (bounty) {
@@ -661,124 +534,31 @@ async function startServer() {
     res.json({ ok: true });
   });
 
-  // Settings & Connection Test
   app.get('/api/settings', (_req, res) => {
     res.json(buildSettingsResponse());
   });
 
-  app.patch('/api/settings', settingsLimiter, async (req, res) => {
-    if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'allowPaidRequests')) {
-      res.status(403).json({
-        error:
-          'Paid LLM authorization is a server-side policy (ALLOW_PAID_LLM_REQUESTS environment variable) and cannot be modified via API requests.',
-      });
-      return;
-    }
-
-    const schema = z
-      .object({
-        provider: z.enum(['gemini', 'openai_compatible']).optional(),
-        model: z.string().trim().min(1).optional(),
-        openaiCompatBaseUrl: z.string().trim().optional(),
-        openaiCompatModel: z.string().trim().min(1).optional(),
-        geminiApiKey: z.string().optional(),
-        openaiCompatApiKey: z.string().optional(),
-        enableSearchGrounding: z.boolean().optional(),
-        syncIntervalMinutes: z.number().int().min(5).max(1440).optional(),
-        accountHandle: z.string().trim().min(1).optional(),
-        permittedEvidencePaths: z.array(z.string()).optional(),
-      })
-      .strict();
-
-    const parsed = schema.safeParse(req.body);
+  app.patch('/api/settings', settingsLimiter, (req, res) => {
+    const parsed = z.strictObject({
+      syncIntervalMinutes: z.number().int().min(5).max(1440).optional(),
+      accountHandle: z.string().trim().min(1).optional(),
+      permittedEvidencePaths: z.array(z.string()).optional(),
+    }).safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: 'Invalid settings update payload.' });
       return;
     }
-
-    const d = parsed.data;
-    const current = resolveRuntimeLLMConfig();
-    const nextProvider = d.provider ?? current.provider;
-    const nextGeminiModel = d.model ?? current.geminiModel;
-    const nextCompatModel = d.openaiCompatModel ?? current.openaiCompatModel;
-    const nextCompatBaseUrl = d.openaiCompatBaseUrl ?? current.openaiCompatBaseUrl;
-
-    try {
-      // Validate effective provider/model authorization at save time
-      validateModelAuthorization(
-        nextProvider,
-        nextProvider === 'gemini' ? nextGeminiModel : nextCompatModel,
-        isServerPaidLlmAuthorized()
-      );
-
-      // Validate & allowlist-check OpenAI-compatible Base URL whenever provided or when provider is openai_compatible
-      let normalizedCompatUrl = nextCompatBaseUrl;
-      if (d.openaiCompatBaseUrl !== undefined || nextProvider === 'openai_compatible') {
-        normalizedCompatUrl = await validateOpenAICompatBaseUrl(nextCompatBaseUrl);
-      }
-
-      if (d.provider !== undefined) crud.setSettingValue('provider', d.provider);
-      if (d.model !== undefined) crud.setSettingValue('model', nextGeminiModel);
-      if (d.openaiCompatBaseUrl !== undefined) {
-        crud.setSettingValue('openaiCompatBaseUrl', normalizedCompatUrl);
-      }
-      if (d.openaiCompatModel !== undefined) {
-        crud.setSettingValue('openaiCompatModel', nextCompatModel);
-      }
-      if (d.geminiApiKey !== undefined) {
-        crud.setSettingValue('geminiApiKey', d.geminiApiKey.trim());
-      }
-      if (d.openaiCompatApiKey !== undefined) {
-        crud.setSettingValue('openaiCompatApiKey', d.openaiCompatApiKey.trim());
-      }
-      if (d.enableSearchGrounding !== undefined) {
-        crud.setSettingValue('enableSearchGrounding', String(d.enableSearchGrounding));
-      }
-      if (d.syncIntervalMinutes !== undefined) {
-        crud.setSettingValue('syncIntervalMinutes', String(d.syncIntervalMinutes));
-      }
-      if (d.accountHandle !== undefined) {
-        crud.setSettingValue('accountHandle', d.accountHandle);
-      }
-      if (d.permittedEvidencePaths !== undefined) {
-        crud.setSettingValue('permittedEvidencePaths', JSON.stringify(d.permittedEvidencePaths));
-      }
-      res.json(buildSettingsResponse());
-    } catch (err) {
-      if (err instanceof SecurityPolicyError || err instanceof LLMConfigurationError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to validate settings.' });
+    const { syncIntervalMinutes, accountHandle, permittedEvidencePaths } = parsed.data;
+    if (syncIntervalMinutes !== undefined) crud.setSettingValue('syncIntervalMinutes', String(syncIntervalMinutes));
+    if (accountHandle !== undefined) crud.setSettingValue('accountHandle', accountHandle);
+    if (permittedEvidencePaths !== undefined) {
+      crud.setSettingValue('permittedEvidencePaths', JSON.stringify(permittedEvidencePaths));
     }
+    res.json(buildSettingsResponse());
   });
 
-  app.post('/api/settings/test-llm', llmTestLimiter, async (req, res) => {
-    const schema = z
-      .object({
-        provider: z.enum(['gemini', 'openai_compatible']).optional(),
-        model: z.string().trim().min(1).optional(),
-        openaiCompatBaseUrl: z.string().trim().optional(),
-        openaiCompatModel: z.string().trim().min(1).optional(),
-        mode: z.enum(['connectivity', 'full']).optional(),
-      })
-      .strict();
-
-    const parsed = schema.safeParse(req.body || {});
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid test payload.' });
-      return;
-    }
-    try {
-      const result = await testLLMConnection(parsed.data);
-      res.json(result);
-    } catch (err) {
-      if (err instanceof LLMConfigurationError || err instanceof SecurityPolicyError) {
-        res.status(err.statusCode).json({ ok: false, error: err.message });
-        return;
-      }
-      res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'Test failed' });
-    }
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'API route not found.' });
   });
 
   // Global API error handler returning JSON (preventing HTML fallback for API routes)
@@ -803,8 +583,10 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, BIND_HOST, () => {
-    console.log(`COSMICLABS Make.fun Command Center listening on http://${BIND_HOST}:${PORT}`);
+  const listener = app.listen(PORT, BIND_HOST, () => {
+    const address = listener.address();
+    const port = address && typeof address === 'object' ? address.port : PORT;
+    console.log(`COSMICLABS Make.fun Command Center listening on http://${BIND_HOST}:${port}`);
   });
 }
 

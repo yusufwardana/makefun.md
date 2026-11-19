@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCommandCenterCrud } from '../server/crud.ts';
-import { createDatabaseConnection } from '../server/db.ts';
+
+process.env.COSMICLABS_DB_PATH = ':memory:';
+const { createCommandCenterCrud } = await import('../server/crud.ts');
+const { createDatabaseConnection } = await import('../server/db.ts');
 
 function setupIsolatedCrud() {
   const { sqlite, orm } = createDatabaseConnection(':memory:');
@@ -112,7 +114,7 @@ test('Drizzle Bounties CRUD: upsert preserves watchlist/notes and supports sorti
   }
 });
 
-test('Drizzle Snapshots, AI Analyses, Prompt Versions (transactional) & Cascade Delete', () => {
+test('Drizzle Official Snapshots & Cascade Delete', () => {
   const { sqlite, crud } = setupIsolatedCrud();
   try {
     crud.upsertBounty({
@@ -153,127 +155,9 @@ test('Drizzle Snapshots, AI Analyses, Prompt Versions (transactional) & Cascade 
     });
     assert.equal(snap1.officialPromptText, 'Build a 4KB chess engine.');
 
-    const snapWithOverride = crud.upsertManualPromptOverride(
-      'tiny-chess-01',
-      'Verified full manual official rules text.'
-    );
-    assert.equal(snapWithOverride.manualPromptOverride, 'Verified full manual official rules text.');
-
-    // AI Analysis CRUD
-    const analysis = crud.createAIAnalysis({
-      bountySlug: 'tiny-chess-01',
-      provider: 'gemini',
-      model: 'gemini-4-hydrogen',
-      stageStatus: 'completed_4_stage_pipeline',
-      objectiveSummary: '4096 byte compressed chess bot.',
-      mandatoryRequirements: ['Single file <= 4096 bytes'],
-      judgingCriteria: ['Elo rating'],
-      recommendedApproach: 'PeSTO + alpha-beta + zlib self-extract.',
-      differentiationStrategy: 'Compact LMR & aspiration windows.',
-      architectureOrMethodology: 'Single Python script compressed with zlib.',
-      priorityMatrix: [{ criterion: 'Elo', weightOrEmphasis: 'Primary', actionableFocus: 'Tactical search' }],
-      implementationGuidance: ['Use 0x88 or bitboard'],
-      qualityStandards: ['Zero illegal moves'],
-      testingValidation: ['Run 6-trial suite'],
-      complianceConsiderations: ['No network access'],
-      assumptionsUncertainties: ['Clock budget'],
-      risks: ['Byte overflow'],
-      researchReferences: [
-        {
-          title: 'PeSTO Evaluation',
-          url: 'https://www.chessprogramming.org/PeSTO',
-          sourceType: 'official_docs',
-          relevance: 'Piece-square tables',
-        },
-      ],
-      researchDisclosures: 'Official specs verified.',
-      recommendedSkills: [
-        {
-          id: 'ai-pesto-1',
-          name: 'PeSTO Tapered Eval',
-          category: 'Chess Search',
-          source: 'ai_curated',
-          priority: 'essential',
-          rationale: 'Maximizes strength per byte.',
-          agentDirective: 'Use compact signed byte PSQT tables.',
-          enabled: true,
-        },
-      ],
-      rawLlmResponse: '{"ok":true}',
-      tokenUsage: { promptTokens: 100, completionTokens: 200, totalTokens: 300 },
-    });
-    const fetchedAnalysis = crud.getAIAnalysisById(analysis.id);
-    assert.equal(fetchedAnalysis?.model, 'gemini-4-hydrogen');
-    assert.equal(fetchedAnalysis?.recommendedSkills?.[0]?.name, 'PeSTO Tapered Eval');
-    assert.equal(crud.listAIAnalysesByBounty('tiny-chess-01').length, 1);
-
-    // Transactional append-only prompt versions
-    const v1 = crud.createPromptVersionTransactional({
-      bountySlug: 'tiny-chess-01',
-      bountyTitle: 'Tiny Chess',
-      analysisId: analysis.id,
-      part1OriginalPrompt: 'Build a 4KB chess engine.',
-      part2AiEnhancement: 'Use PeSTO + PVS.',
-      part3ExecutionGuidelines: 'Stay under 4096 bytes.',
-      founderInstructions: 'Python 3.13',
-      fullMarkdown: '# v1',
-      editSummary: 'Initial v1',
-      founderNotes: 'Track bytes',
-    });
-    assert.equal(v1.version.versionNumber, 1);
-    assert.equal(v1.draft.latestVersionId, v1.version.id);
-
-    const v2 = crud.createPromptVersionTransactional({
-      bountySlug: 'tiny-chess-01',
-      bountyTitle: 'Tiny Chess',
-      analysisId: analysis.id,
-      part1OriginalPrompt: 'Build a 4KB chess engine.',
-      part2AiEnhancement: 'Use PeSTO + PVS + CRC32 opening book.',
-      part3ExecutionGuidelines: 'Stay under 4096 bytes and log 5+ turns.',
-      founderInstructions: 'Python 3.13',
-      selectedSkills: [
-        {
-          id: 'ai-pesto-1',
-          name: 'PeSTO Tapered Eval',
-          category: 'Chess Search',
-          source: 'ai_curated',
-          priority: 'essential',
-          rationale: 'Maximizes strength per byte.',
-          agentDirective: 'Use compact signed byte PSQT tables.',
-          enabled: true,
-        },
-        {
-          id: 'custom-verify',
-          name: 'hermes-byte-guard',
-          category: 'Verification',
-          source: 'founder_custom',
-          priority: 'essential',
-          rationale: 'Enforces 4096 byte limit.',
-          agentDirective: 'Assert output script size <= 4096 bytes.',
-          enabled: true,
-        },
-      ],
-      fullMarkdown: '# v2',
-      editSummary: 'Added opening book',
-      founderNotes: 'Track bytes closely',
-    });
-    assert.equal(v2.version.versionNumber, 2);
-    assert.equal(v2.draft.latestVersionId, v2.version.id);
-    assert.equal(v2.version.selectedSkills?.length, 2);
-
-    const { draft, versions } = crud.getPromptDraftAndVersionsBySlug('tiny-chess-01');
-    assert.equal(draft?.founderNotes, 'Track bytes closely');
-    assert.equal(versions.length, 2);
-    assert.equal(versions[0].versionNumber, 2);
-    assert.equal(versions[0].selectedSkills?.[1]?.name, 'hermes-byte-guard');
-    assert.equal(versions[1].versionNumber, 1);
-    assert.deepEqual(versions[1].selectedSkills, []);
-
-    // Cascade delete bounty removes snapshots, analyses, drafts, versions
+    assert.equal(crud.getLatestBountySnapshot('tiny-chess-01')?.id, snap1.id);
     assert.equal(crud.deleteBounty('tiny-chess-01'), true);
     assert.equal(crud.getLatestBountySnapshot('tiny-chess-01'), null);
-    assert.equal(crud.listAIAnalysesByBounty('tiny-chess-01').length, 0);
-    assert.equal(crud.getPromptDraftAndVersionsBySlug('tiny-chess-01').versions.length, 0);
   } finally {
     sqlite.close();
   }

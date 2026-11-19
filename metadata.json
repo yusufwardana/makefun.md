@@ -1,8 +1,5 @@
 {
   "name": "COSMICLABS Make.fun Command Center",
-  "description": "Local-first command center for discovering make.fun bounties, studying official requirements, enhancing prompts with real LLM research, and tracking prompt versions, Hermes evidence, submissions, and rewards.",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "description": "Discover make.fun bounties, inspect official requirements, hand off to Muse, and track evidence, submissions, and rewards.",
+  "requestFramePermissions": []
 }
