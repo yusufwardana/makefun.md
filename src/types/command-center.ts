@@ -48,35 +48,6 @@ export interface LeaderboardGapInsights {
   gapSummary: string;
 }
 
-export interface TranscriptGateCheckResult {
-  gateId:
-    | 'transcripts_present'
-    | 'thinking_wellformed'
-    | 'thinking_in_window'
-    | 'thinking_committed'
-    | 'thinking_reproduces'
-    | 'thinking_turns'
-    | 'thinking_priced'
-    | 'thinking_revised'
-    | 'thinking_fresh';
-  title: string;
-  status: 'pass' | 'fail' | 'warn' | 'manual_at_submit';
-  detail: string;
-}
-
-export interface TranscriptGateReport {
-  checkedAt: string;
-  bountySlug: string | null;
-  parsedRecords: number;
-  assistantTextTurns: number;
-  toolEditTurns: number;
-  timestampsCount: number;
-  usageRecordsCount: number;
-  anchorDetected: boolean;
-  overallReady: boolean;
-  checks: TranscriptGateCheckResult[];
-}
-
 export interface BountyRecord {
   slug: string;
   id: string;
@@ -167,9 +138,13 @@ export interface RewardRecord {
 
 export interface AppSettings {
   authRequired: boolean;
+  enhanceAi: {
+    provider: string;
+    model: string;
+    configured: boolean;
+  };
   syncIntervalMinutes: number;
   accountHandle: string;
-  permittedEvidencePaths: string[];
   lastGlobalSyncAt: string | null;
   nextCursor: string | null;
 }

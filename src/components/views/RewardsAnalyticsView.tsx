@@ -21,6 +21,7 @@ import {
 import { formatDateTime, formatUsd } from '../../lib/utils';
 import { fetch } from '../../lib/api';
 import type { BountyRecord, ClaimStatus, RewardRecord } from '../../types/command-center';
+import { MakefunOfficialRewards } from './MakefunMonitor';
 
 export const RewardsAnalyticsView: React.FC = () => {
   const [records, setRecords] = useState<RewardRecord[]>([]);
@@ -142,6 +143,7 @@ export const RewardsAnalyticsView: React.FC = () => {
         </Button>
       </div>
 
+      <MakefunOfficialRewards />
       {/* 3+1 Strict Ledger Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Panel className="p-5">
@@ -188,8 +190,8 @@ export const RewardsAnalyticsView: React.FC = () => {
           <form onSubmit={handleSaveReward} className="p-5 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs text-muted mb-1">Competition</label>
-                <Select value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full">
+                <label htmlFor="reward-competition" className="block text-xs text-muted mb-1">Competition</label>
+                <Select id="reward-competition" value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full">
                   {bounties.map((b) => (
                     <option key={b.slug} value={b.slug}>
                       {b.title}
@@ -198,8 +200,9 @@ export const RewardsAnalyticsView: React.FC = () => {
                 </Select>
               </div>
               <div>
-                <label className="block text-xs text-muted mb-1">Announced Prize ($)</label>
+                <label htmlFor="reward-announced" className="block text-xs text-muted mb-1">Announced Prize ($)</label>
                 <Input
+                  id="reward-announced"
                   type="number"
                   step="0.01"
                   value={announcedUsd}
@@ -207,8 +210,9 @@ export const RewardsAnalyticsView: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs text-muted mb-1">Verified Award ($)</label>
+                <label htmlFor="reward-awarded" className="block text-xs text-muted mb-1">Verified Award ($)</label>
                 <Input
+                  id="reward-awarded"
                   type="number"
                   step="0.01"
                   value={awardedUsd}
@@ -216,8 +220,9 @@ export const RewardsAnalyticsView: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs text-muted mb-1">Actually Received ($)</label>
+                <label htmlFor="reward-received" className="block text-xs text-muted mb-1">Actually Received ($)</label>
                 <Input
+                  id="reward-received"
                   type="number"
                   step="0.01"
                   value={receivedUsd}
@@ -227,8 +232,9 @@ export const RewardsAnalyticsView: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs text-muted mb-1">Claim Status</label>
+                <label htmlFor="reward-claim-status" className="block text-xs text-muted mb-1">Claim Status</label>
                 <Select
+                  id="reward-claim-status"
                   value={claimStatus}
                   onChange={(e) => setClaimStatus(e.target.value as ClaimStatus)}
                   className="w-full"
@@ -239,18 +245,20 @@ export const RewardsAnalyticsView: React.FC = () => {
                 </Select>
               </div>
               <div>
-                <label className="block text-xs text-muted mb-1">
+                <label htmlFor="reward-tx-signature" className="block text-xs text-muted mb-1">
                   Solana Tx Signature (Optional)
                 </label>
                 <Input
+                  id="reward-tx-signature"
                   value={txSignature}
                   onChange={(e) => setTxSignature(e.target.value)}
                   placeholder="Solana transaction hash"
                 />
               </div>
               <div>
-                <label className="block text-xs text-muted mb-1">Notes</label>
+                <label htmlFor="reward-notes" className="block text-xs text-muted mb-1">Notes</label>
                 <Input
+                  id="reward-notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Placement or escrow note"

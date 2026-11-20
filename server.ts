@@ -6,15 +6,16 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { z } from 'zod';
 import { crud } from './server/crud.ts';
-import { safeJsonParse } from './server/db.ts';
+import { db } from './server/db.ts';
 import {
   createRateLimiter,
   enforceSameOriginCsrf,
-  isWithinWorkspace,
   getOperatorAuthToken,
   requireOperatorAuth,
 } from './server/security.ts';
 import { buildMusePackage, formatMuseMarkdown } from './server/muse-handoff.ts';
+import { museContextFilename } from './src/lib/muse-bootstrap.ts';
+import { geminiEnhanceModel, MuseSkillEnhancementError, selectMuseSkills } from './server/muse-skill-enhancement.ts';
 import { bountySlugSchema } from './src/types/muse-package.ts';
 import {
   computeEffectiveSyncState,
@@ -22,27 +23,32 @@ import {
   syncCompetitionsFromMakefun,
   syncSingleBountyDetails,
 } from './server/makefun.ts';
-import { evaluateTranscriptGates } from './server/transcript-gate.ts';
+import { createMakefunMonitor } from './server/makefun-monitor.ts';
 import type { AppSettings } from './src/types/command-center.ts';
 
 const PORT = Number(process.env.PORT || 3000);
 const BIND_HOST = process.env.HOST?.trim() || (process.env.K_SERVICE ? '0.0.0.0' : '127.0.0.1');
+const databasePath = path.resolve(db.name);
+// Vite excludes .env.* files from requests and the repository ignores them.
+const geminiKeyPath = path.join(path.dirname(databasePath), `.env.${path.basename(databasePath)}.enhance`);
 
 function buildSettingsResponse(): AppSettings {
   return {
     authRequired: Boolean(getOperatorAuthToken()),
     syncIntervalMinutes: Number(crud.getSettingValue('syncIntervalMinutes') || 30),
     accountHandle: crud.getSettingValue('accountHandle') || '@0xkeinara',
-    permittedEvidencePaths: safeJsonParse<string[]>(
-      crud.getSettingValue('permittedEvidencePaths'),
-      ['./evidence']
-    ),
     lastGlobalSyncAt: crud.getSettingValue('lastGlobalSyncAt') || null,
     nextCursor: crud.getSettingValue('nextCursor') || null,
+    enhanceAi: {
+      provider: 'Google Gemini API',
+      model: geminiEnhanceModel,
+      configured: fs.existsSync(geminiKeyPath),
+    },
   };
 }
 
 const settingsLimiter = createRateLimiter({ bucket: 'settings', windowMs: 60_000, maxRequests: 30 });
+const enhanceSkillLimiter = createRateLimiter({ bucket: 'enhance-skill', windowMs: 60_000, maxRequests: 6 });
 
 async function startServer() {
   const app = express();
@@ -58,6 +64,8 @@ async function startServer() {
     }
     requireOperatorAuth(req, res, next);
   });
+  const makefunKeyPath = path.join(path.dirname(databasePath), `.env.${path.basename(databasePath)}.makefun`);
+  app.use('/api/makefun', createMakefunMonitor(makefunKeyPath, BIND_HOST));
 
   // Health endpoint
   app.get('/api/health', (_req, res) => {
@@ -189,11 +197,63 @@ async function startServer() {
       res.status(409).json({ error: 'The snapshot changed. Reload the bounty details before exporting.' });
       return;
     }
+    res.attachment(museContextFilename(pkg.bounty.slug, input.data.format));
     if (input.data.format === 'markdown') {
-      res.attachment('MUSE_BOUNTY_CONTEXT.md').type('text/markdown').send(formatMuseMarkdown(pkg));
+      res.type('text/markdown').send(formatMuseMarkdown(pkg));
       return;
     }
-    res.attachment('MUSE_BOUNTY_CONTEXT.json').type('application/json').send(JSON.stringify(pkg, null, 2) + '\n');
+    res.type('application/json').send(JSON.stringify(pkg, null, 2) + '\n');
+  });
+
+  app.post('/api/bounties/:slug/enhance-skill', enhanceSkillLimiter, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const slug = bountySlugSchema.safeParse(req.params.slug);
+    const input = z.strictObject({ checksum: z.string().regex(/^sha256:[a-f0-9]{64}$/) }).safeParse(req.body);
+    if (!slug.success || !input.success) {
+      res.status(400).json({ error: 'Invalid bounty identifier or snapshot checksum.' });
+      return;
+    }
+    const bounty = crud.getBountyBySlug(slug.data);
+    if (!bounty) {
+      res.status(404).json({ error: 'Bounty not found in the local records.' });
+      return;
+    }
+    const snapshot = crud.getLatestBountySnapshot(slug.data);
+    const insights = extractLeaderboardInsights(snapshot?.rawLeaderboard ?? null, snapshot?.rawCompetition ?? null, '');
+    const pkg = buildMusePackage(bounty, snapshot, insights);
+    if (input.data.checksum !== pkg.sourceProvenance.contentChecksum) {
+      res.status(409).json({ error: 'The snapshot changed. Reload the bounty details before enhancing.' });
+      return;
+    }
+    if (!pkg.officialPrompt?.trim() || !pkg.officialRequirements) {
+      res.status(422).json({ error: 'Refresh this bounty to load its official brief and requirements first.' });
+      return;
+    }
+    let apiKey: string;
+    try {
+      apiKey = (await fs.promises.readFile(geminiKeyPath, 'utf8')).trim();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        res.status(500).json({ error: 'Could not read the Gemini API key. Check Settings.' });
+        return;
+      }
+      apiKey = '';
+    }
+    if (!apiKey) {
+      res.status(400).json({ error: 'Save a Gemini API key in Settings → Enhance AI first.' });
+      return;
+    }
+    try {
+      res.json(await selectMuseSkills(pkg, apiKey));
+    } catch (error) {
+      if (error instanceof MuseSkillEnhancementError) {
+        res.status(error.status).json({ error: error.message });
+      } else if (error instanceof Error && error.name === 'TimeoutError') {
+        res.status(504).json({ error: 'Gemini took too long to respond. Try again.' });
+      } else {
+        res.status(502).json({ error: 'Could not connect to Gemini. Try again.' });
+      }
+    }
   });
 
   app.patch('/api/bounties/:slug/watchlist', (req, res) => {
@@ -226,179 +286,7 @@ async function startServer() {
     res.json({ ok: true });
   });
 
-  // Read-only evidence monitor
-  app.get('/api/evidence', (_req, res) => {
-    res.json({
-      evidence: crud.listEvidence(),
-      permittedPaths: safeJsonParse<string[]>(
-        crud.getSettingValue('permittedEvidencePaths'),
-        ['./evidence']
-      ),
-    });
-  });
-
-  app.post('/api/evidence/import', (req, res) => {
-    const schema = z.object({
-      bountySlug: z.string().nullable().optional(),
-      sourceType: z.enum(['session_export', 'local_log', 'project_artifact']),
-      sourcePathOrName: z.string().min(1),
-      sessionId: z.string().nullable().optional(),
-      rawContent: z.string().min(1),
-    });
-    const parsed = schema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid evidence import payload.' });
-      return;
-    }
-
-    const raw = parsed.data.rawContent;
-    const lines = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);
-    const timestampMatches = raw.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/g) || [];
-    const summary =
-      lines.length > 0
-        ? `Imported ${lines.length} line(s) (${Buffer.byteLength(raw, 'utf8')} bytes) from ${parsed.data.sourcePathOrName}.`
-        : 'Empty file';
-
-    const item = crud.createEvidence({
-      bountySlug: parsed.data.bountySlug || null,
-      sourceType: parsed.data.sourceType,
-      sourcePathOrName: parsed.data.sourcePathOrName,
-      sessionId: parsed.data.sessionId || null,
-      summary,
-      rawContent: raw.slice(0, 200000),
-      metadata: {
-        turnCount: lines.length,
-        timestampsFound: timestampMatches.length,
-        byteSize: Buffer.byteLength(raw, 'utf8'),
-        readOnlyVerified: true,
-      },
-    });
-
-    res.status(201).json({ item });
-  });
-
-  app.post('/api/evidence/scan-local', (_req, res) => {
-    const permittedPaths = safeJsonParse<string[]>(
-      crud.getSettingValue('permittedEvidencePaths'),
-      ['./evidence']
-    );
-    const workspaceRoot = fs.realpathSync(process.cwd());
-    const scannedFiles: Array<{ path: string; size: number; modifiedAt: string }> = [];
-    const skippedPaths: Array<{ path: string; reason: string }> = [];
-
-    for (const relOrAbs of permittedPaths) {
-      const resolved = path.resolve(workspaceRoot, relOrAbs);
-      if (!isWithinWorkspace(workspaceRoot, resolved)) {
-        skippedPaths.push({ path: relOrAbs, reason: 'Outside workspace directory boundary' });
-        continue;
-      }
-      if (!fs.existsSync(resolved)) {
-        skippedPaths.push({ path: relOrAbs, reason: 'Directory does not exist on disk' });
-        continue;
-      }
-      const realDirectory = fs.realpathSync(resolved);
-      if (!isWithinWorkspace(workspaceRoot, realDirectory)) {
-        skippedPaths.push({ path: relOrAbs, reason: 'Outside workspace directory boundary' });
-        continue;
-      }
-      const stat = fs.statSync(realDirectory);
-      if (!stat.isDirectory()) {
-        skippedPaths.push({ path: relOrAbs, reason: 'Path is not a directory' });
-        continue;
-      }
-      const entries = fs.readdirSync(realDirectory, { withFileTypes: true });
-      for (const entry of entries.slice(0, 25)) {
-        if (!entry.isFile()) continue;
-        if (!/\.(json|jsonl|log|md|txt)$/i.test(entry.name)) continue;
-        const fullFile = fs.realpathSync(path.join(realDirectory, entry.name));
-        if (!isWithinWorkspace(workspaceRoot, fullFile)) continue;
-        const fStat = fs.statSync(fullFile);
-        const content = fs.readFileSync(fullFile, 'utf8').slice(0, 150000);
-        const relPath = path.relative(workspaceRoot, fullFile);
-
-        const existing = crud.findEvidenceBySourcePath(relPath);
-        if (!existing) {
-          const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
-          crud.createEvidence({
-            bountySlug: null,
-            sourceType: 'local_log',
-            sourcePathOrName: relPath,
-            sessionId: null,
-            summary: `Read-only scan from ${relPath} (${lines.length} lines, ${fStat.size} bytes)`,
-            rawContent: content,
-            metadata: {
-              turnCount: lines.length,
-              byteSize: fStat.size,
-              readOnlyVerified: true,
-            },
-          });
-        }
-        scannedFiles.push({
-          path: relPath,
-          size: fStat.size,
-          modifiedAt: fStat.mtime.toISOString(),
-        });
-      }
-    }
-
-    res.json({ scannedFiles, skippedPaths });
-  });
-
-  app.post('/api/evidence/:id/precheck', (req, res) => {
-    const { id } = req.params;
-    const body = z
-      .object({
-        bountySlug: z.string().nullable().optional(),
-      })
-      .safeParse(req.body || {});
-    if (!body.success) {
-      res.status(400).json({ error: 'Invalid pre-check request payload.' });
-      return;
-    }
-
-    const evidenceItem = crud.getEvidenceById(id);
-    if (!evidenceItem) {
-      res.status(404).json({ error: 'Evidence artifact not found.' });
-      return;
-    }
-
-    const targetSlug =
-      body.data.bountySlug !== undefined ? body.data.bountySlug : evidenceItem.bountySlug;
-
-    let publishedAt: string | null = null;
-    let deadline: string | null = null;
-    if (targetSlug && evidenceItem.bountySlug && evidenceItem.bountySlug !== targetSlug) {
-      res.status(400).json({ error: 'Evidence is linked to a different bounty.' });
-      return;
-    }
-    if (targetSlug) {
-      const bounty = crud.getBountyBySlug(targetSlug);
-      if (bounty) {
-        publishedAt = bounty.publishedAt;
-        deadline = bounty.deadline;
-      }
-    }
-
-    const report = evaluateTranscriptGates({
-      rawContent: evidenceItem.rawContent,
-      bountySlug: targetSlug || null,
-      competitionPublishedAt: publishedAt,
-      competitionDeadline: deadline,
-    });
-
-    res.json({ report });
-  });
-
-  app.delete('/api/evidence/:id', (req, res) => {
-    const deleted = crud.deleteEvidence(req.params.id);
-    if (!deleted) {
-      res.status(404).json({ error: 'Evidence artifact not found.' });
-      return;
-    }
-    res.json({ ok: true });
-  });
-
-  // Verified Submissions
+  // Submission records
   app.get('/api/submissions', (_req, res) => {
     res.json({
       accountHandle: crud.getSettingValue('accountHandle') || '@0xkeinara',
@@ -418,7 +306,7 @@ async function startServer() {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid verified submission payload.' });
+      res.status(400).json({ error: 'Invalid manual submission details.' });
       return;
     }
 
@@ -542,17 +430,27 @@ async function startServer() {
     const parsed = z.strictObject({
       syncIntervalMinutes: z.number().int().min(5).max(1440).optional(),
       accountHandle: z.string().trim().min(1).optional(),
-      permittedEvidencePaths: z.array(z.string()).optional(),
+      enhanceGeminiApiKey: z.string().trim().min(1).max(512).regex(/^\S+$/).nullable().optional(),
     }).safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: 'Invalid settings update payload.' });
       return;
     }
-    const { syncIntervalMinutes, accountHandle, permittedEvidencePaths } = parsed.data;
+    const { syncIntervalMinutes, accountHandle, enhanceGeminiApiKey } = parsed.data;
     if (syncIntervalMinutes !== undefined) crud.setSettingValue('syncIntervalMinutes', String(syncIntervalMinutes));
     if (accountHandle !== undefined) crud.setSettingValue('accountHandle', accountHandle);
-    if (permittedEvidencePaths !== undefined) {
-      crud.setSettingValue('permittedEvidencePaths', JSON.stringify(permittedEvidencePaths));
+    if (enhanceGeminiApiKey === null) {
+      fs.rmSync(geminiKeyPath, { force: true });
+    } else if (enhanceGeminiApiKey !== undefined) {
+      const temporaryKeyPath = `${geminiKeyPath}.${crypto.randomUUID()}.tmp`;
+      try {
+        fs.writeFileSync(temporaryKeyPath, enhanceGeminiApiKey, { flag: 'wx', mode: 0o600 });
+        fs.renameSync(temporaryKeyPath, geminiKeyPath);
+      } catch {
+        fs.rmSync(temporaryKeyPath, { force: true });
+        res.status(500).json({ error: 'Could not store the Gemini API key.' });
+        return;
+      }
     }
     res.json(buildSettingsResponse());
   });

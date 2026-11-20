@@ -3,7 +3,7 @@ import { Download, ExternalLink, RefreshCw } from 'lucide-react';
 import { Button, Panel, Select, SyncStateIndicator, Textarea } from '../ui/primitives';
 import { fetch } from '../../lib/api';
 import { formatDateTime, formatUsd } from '../../lib/utils';
-import { museBootstrap } from '../../lib/muse-bootstrap';
+import { formatEnhancedMuseBootstrap, museBootstrap, museContextFilename, type MuseSkillEnhancement } from '../../lib/muse-bootstrap';
 import type { MusePackage } from '../../types/muse-package';
 import type { BountyRecord, LeaderboardGapInsights } from '../../types/command-center';
 
@@ -41,6 +41,65 @@ function CheckList({ checks }: { checks: MusePackage['recordingRequirements'] })
       {check.description && <p className="whitespace-pre-wrap">{check.description}</p>}
     </li>)}
   </ul>;
+}
+
+function MuseBootstrapControls({ pkg, loading }: { pkg: MusePackage; loading: boolean }) {
+  const [enhancement, setEnhancement] = useState<MuseSkillEnhancement | null>(null);
+  const [enhancing, setEnhancing] = useState(false);
+  const [status, setStatus] = useState('');
+  const bootstrap = enhancement ? formatEnhancedMuseBootstrap(pkg.bounty.slug, enhancement) : museBootstrap;
+
+  async function enhanceSkill() {
+    setEnhancing(true);
+    setStatus('');
+    try {
+      const response = await fetch(`/api/bounties/${encodeURIComponent(pkg.bounty.slug)}/enhance-skill`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checksum: pkg.sourceProvenance.contentChecksum }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not enhance this bounty.');
+      setEnhancement(result);
+      setStatus('Skill review added to the bootstrap.');
+    } catch (error) {
+      setStatus((error as Error).message);
+    } finally {
+      setEnhancing(false);
+    }
+  }
+
+  async function copyBootstrap() {
+    try {
+      await navigator.clipboard.writeText(bootstrap);
+      setStatus(enhancement ? 'Enhanced Muse bootstrap copied.' : 'Muse bootstrap copied.');
+    } catch {
+      setStatus('Clipboard unavailable. Open the bootstrap preview and copy the text.');
+    }
+  }
+
+  return <div className="space-y-3 border-t border-line pt-3">
+    <div className="flex flex-wrap gap-2">
+      <Button variant="secondary" size="sm" disabled={loading || enhancing} onClick={enhanceSkill}>
+        {enhancing ? 'Reviewing bounty…' : 'Enhance Skill'}
+      </Button>
+      <Button variant="ghost" size="sm" disabled={loading || enhancing} onClick={copyBootstrap}>Copy Muse Bootstrap Instructions</Button>
+    </div>
+    <p className="text-sm text-secondary" role="status">{status}</p>
+    {enhancement && <div className="space-y-2 text-sm text-secondary [overflow-wrap:anywhere]">
+      <p><strong className="text-ink">Category</strong> · {enhancement.category}</p>
+      <p>{enhancement.basis}</p>
+      {enhancement.skills.length ? <ul className="list-disc space-y-1 pl-5">
+        {enhancement.skills.map(skill => <li key={skill.id}>
+          <strong>{skill.id}</strong> · {skill.reason}
+          {skill.github && <div><OfficialLink url={skill.github.skillUrl}>{skill.github.repository} · SKILL.md</OfficialLink></div>}
+        </li>)}
+      </ul> : <p>No matching skills in the catalog.</p>}
+    </div>}
+    <details className="text-sm text-secondary [overflow-wrap:anywhere]">
+      <summary className="cursor-pointer">View bootstrap instructions</summary>
+      <p className="mt-2 whitespace-pre-wrap">{bootstrap}</p>
+    </details>
+  </div>;
 }
 
 interface Detail {
@@ -145,7 +204,7 @@ export function BountyIntelligenceView({ initialSlug, onSelect, onBack, onEviden
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement('a');
       link.href = url;
-      link.download = format === 'json' ? 'MUSE_BOUNTY_CONTEXT.json' : 'MUSE_BOUNTY_CONTEXT.md';
+      link.download = museContextFilename(pkg.bounty.slug, format);
       document.body.append(link);
       link.click();
       link.remove();
@@ -155,15 +214,6 @@ export function BountyIntelligenceView({ initialSlug, onSelect, onBack, onEviden
       setExportStatus((error as Error).message);
     } finally {
       setExporting(false);
-    }
-  }
-
-  async function copyBootstrap() {
-    try {
-      await navigator.clipboard.writeText(museBootstrap);
-      setExportStatus('Muse bootstrap copied.');
-    } catch {
-      setExportStatus('Clipboard unavailable. Select and copy the bootstrap text below.');
     }
   }
 
@@ -291,7 +341,7 @@ export function BountyIntelligenceView({ initialSlug, onSelect, onBack, onEviden
                   <li key={ix}>Place {place.place} · {place.amountUsd === null ? unavailable : formatUsd(Number(place.amountUsd))}</li>)}</ol> : <p>No payout schedule in this snapshot.</p>}
               </Section>
               <Section title="Recording and provenance requirements">
-                <p>Evidence Monitor provides a preliminary local check. Official validation is performed by make.fun.</p>
+                <p>Evidence Monitor shows recording status and submission checks reported by make.fun.</p>
                 <CheckList checks={pkg.recordingRequirements} />
               </Section>
             </div>
@@ -305,13 +355,9 @@ export function BountyIntelligenceView({ initialSlug, onSelect, onBack, onEviden
                     <Download className="size-3.5" aria-hidden="true" /> Download JSON
                   </Button>
                   <Button variant="secondary" size="sm" disabled={exporting || loading} onClick={() => download('markdown')}>Download Markdown</Button>
-                  <Button variant="ghost" size="sm" onClick={copyBootstrap}>Copy Muse Bootstrap Instructions</Button>
                 </div>
                 <p className="text-sm text-secondary" role="status">{exportStatus}</p>
-                <details className="text-sm text-secondary">
-                  <summary className="cursor-pointer">View bootstrap instructions</summary>
-                  <p className="mt-2 whitespace-pre-wrap">{museBootstrap}</p>
-                </details>
+                <MuseBootstrapControls key={pkg.packageId} pkg={pkg} loading={loading} />
                 <Button variant="secondary" size="sm" onClick={onEvidence}>Review evidence</Button>
               </Panel>
               <Section title="Sources and missing information" open>

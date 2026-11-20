@@ -20,6 +20,7 @@ import {
 } from '../ui/primitives';
 import { formatDateTime, formatRelativeDeadline, formatUsd } from '../../lib/utils';
 import { fetch } from '../../lib/api';
+import { MakefunWatchlist } from './MakefunMonitor';
 import type { MusePackage } from '../../types/muse-package';
 import type {
   BountyRecord,
@@ -244,6 +245,7 @@ export const BountyExplorerView: React.FC<BountyExplorerViewProps> = ({
         </div>
       )}
 
+      {watchlistedOnly && <MakefunWatchlist />}
       {/* Search & Filter Toolbar */}
       <Panel className="p-4">
         <div className="flex min-w-0 flex-wrap items-center gap-3">

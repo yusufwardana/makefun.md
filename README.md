@@ -43,7 +43,9 @@ Unduh [ZIP workspace Phase 1](docs/muse-bounty-agent.zip). Arsip ini berisi pand
 
 Untuk uji handoff, cukup minta laporan validasi, skill yang dimuat, informasi yang kurang, dan kesiapan eksekusi. Mulai build atau submission setelah mendapat persetujuan terpisah. Siapkan perekaman sesi resmi sebelum implementasi jika diwajibkan.
 
-Gunakan **Evidence Monitor** untuk memeriksa bukti dari sesi aktif. Dasbor menjalankan sembilan pemeriksaan awal terhadap transkrip. make.fun menangani validasi resmi. Gunakan **Submissions** untuk melacak bukti penerimaan dan **Rewards Analytics** untuk melihat hadiah yang diumumkan, diberikan, dan diterima.
+Gunakan **Evidence Monitor** untuk melihat metadata rekaman dan hasil pemeriksaan resmi dari API make.fun. Sambungkan akun, pilih bounty, lalu gunakan **Sync make.fun** untuk memperbarui data. Gunakan **Submissions** untuk melihat status entry dan **Rewards Analytics** untuk melihat hadiah serta status payout.
+
+Buka **Settings → Connect make.fun** dan masukkan API key dari profil make.fun untuk melihat submission dan reward resmi di dasbor. **Bounty Explorer → Watchlist** menampilkan deadline, status penerimaan, dan posisi di leaderboard publik. Server menyinkronkan akun dan watchlist setiap 30 menit secara default. Ubah interval di Settings atau pilih **Sync now** untuk memperbarui data segera.
 
 Dasbor mengambil data dengan permintaan GET ke endpoint publik make.fun. Build, pendaftaran, submission, dan transaksi berlangsung di luar dasbor. Kamu bisa menjalankan Command Center tanpa akun LLM.
 
@@ -71,13 +73,13 @@ Nilai `null` berarti data belum tersedia. Daftar kosong berarti sumber menyediak
 
 ID paket dan checksum memakai hash yang sama. Inputnya mencakup field tingkat atas dari `bounty` hingga `submissionRequirements`, empat URL dari `sourceProvenance` yang disalin ke tingkat atas, dan `missingInformation`. Waktu dan status kesegaran berada di luar input hash paket. Untuk kedua hash, server memakai JSON UTF-8 ringkas, mengurutkan key objek secara rekursif, mempertahankan urutan array, dan memakai serialisasi angka serta string JavaScript. Gunakan checksum untuk memeriksa isi paket. make.fun memverifikasi penerimaan resmi.
 
-Unduh paket melalui `GET /api/bounties/:slug/muse-export` dengan `format=json` atau `format=markdown`. Endpoint hanya membaca snapshot dari SQLite lokal dan mengirim lampiran dengan nama berkas tetap. Jika permintaan menyertakan checksum opsional dari tampilan detail dan konten sudah berubah, server mengembalikan HTTP 409. Gunakan refresh untuk mengambil sumber terbaru.
+Unduh paket melalui `GET /api/bounties/:slug/muse-export` dengan `format=json` atau `format=markdown`. Endpoint membaca snapshot dari SQLite lokal dan memakai slug bounty sebagai nama berkas, misalnya `makefun-frontend-01.json` atau `makefun-frontend-01.md`. Jika permintaan menyertakan checksum opsional dari tampilan detail dan konten sudah berubah, server mengembalikan HTTP 409. Gunakan refresh untuk mengambil sumber terbaru.
 
 Server membatasi tautan sumber ke origin resmi make.fun. Pagar kode dalam ekspor Markdown membuat markup eksternal tampil sebagai teks.
 
 ## <img src="docs/icons/database.svg" alt="" width="20" height="20"> Data SQLite
 
-Database default ada di `data/cosmiclabs.db`. Atur `COSMICLABS_DB_PATH` untuk memilih database yang sudah ada atau memakai berkas uji terpisah. Aplikasi mempertahankan skema SQLite dan menyimpan arsip `ai_analyses`, `prompt_drafts`, `prompt_versions`, override prompt lama, dan pengaturan provider lama di tempatnya. Bukti tetap memakai tabel `hermes_evidence`.
+Database default ada di `data/cosmiclabs.db`. Atur `COSMICLABS_DB_PATH` untuk memilih database yang sudah ada atau memakai berkas uji terpisah. Skema SQLite lama tetap kompatibel, termasuk tabel arsip `ai_analyses`, `prompt_drafts`, `prompt_versions`, dan `hermes_evidence`.
 
 Aplikasi mempertahankan berkas `.env` yang sudah ada. Setelah alur enhancement dihapus, aplikasi berhenti memuat pengaturan dan rahasia provider lama dari alur tersebut.
 

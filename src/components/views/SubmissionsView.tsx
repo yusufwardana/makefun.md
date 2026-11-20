@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Clock, Award, XCircle, Plus, AlertCircle } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   Button,
   EmptyState,
@@ -10,25 +10,59 @@ import {
 } from '../ui/primitives';
 import { formatDateTime } from '../../lib/utils';
 import { fetch } from '../../lib/api';
+import { matchesSubmissionStatus, mergeSubmissionEntries, type SubmissionListEntry } from '../../lib/submissions';
 import type { BountyRecord, SubmissionRecord, SubmissionStatus } from '../../types/command-center';
+import { statusLabel, useMakefunAccountMonitor } from './MakefunMonitor';
 
-const STATUS_META: Record<
-  SubmissionStatus,
-  { label: string; colorClass: string; Icon: React.ComponentType<{ className?: string }> }
-> = {
-  submitted: { label: 'Submitted', colorClass: 'text-accent', Icon: Clock },
-  accepted: { label: 'Accepted', colorClass: 'text-accent', Icon: CheckCircle2 },
-  judged: { label: 'Judged', colorClass: 'text-warning', Icon: AlertCircle },
-  awarded: { label: 'Awarded', colorClass: 'text-success', Icon: Award },
-  rejected: { label: 'Rejected', colorClass: 'text-danger', Icon: XCircle },
-};
+function SubmissionRow({ entry, bountyTitle }: { entry: SubmissionListEntry; bountyTitle: string }) {
+  const { official, local } = entry;
+  const source = official ? 'make.fun account' : local?.source === 'makefun_api' ? 'Public make.fun snapshot' : 'Manual record';
+  const checks = official?.checks ?? [];
+  const failureCount = checks.filter(check => check.status === 'fail').length;
+  return (
+    <li className="min-w-0 [overflow-wrap:anywhere]">
+      <details className="group">
+        <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm text-secondary hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent">
+          <span className="font-semibold text-ink">{bountyTitle}</span>
+          <span className={entry.stage === 'rejected' ? 'text-danger' : 'text-secondary'}> · <span className="capitalize">{statusLabel(entry.stage)}</span></span>
+          {official?.outcome && <span> · <span className="capitalize">{statusLabel(official.outcome)}</span></span>}
+          {failureCount > 0 && <span className="text-danger"> · {failureCount} failed {failureCount === 1 ? 'check' : 'checks'}</span>}
+          <span className="mt-1 block pl-4 text-xs text-muted">{source}</span>
+        </summary>
+        <div className="space-y-3 px-4 pb-4 text-sm text-secondary">
+          {local?.entryTitle && local.entryTitle !== bountyTitle && <p>{local.entryTitle}</p>}
+          <dl className="grid gap-x-4 gap-y-2 text-xs sm:grid-cols-[auto_minmax(0,1fr)]">
+            <dt className="text-muted">Entry ID</dt><dd className="font-mono">{entry.id}</dd>
+            {local?.commitSha && <><dt className="text-muted">Commit</dt><dd className="font-mono">{local.commitSha}</dd></>}
+            {local && (local.rank !== null || local.scoreDisplay) && <>
+              <dt className="text-muted">{local.source === 'makefun_api' ? 'Snapshot rank / score' : 'Recorded rank / score'}</dt>
+              <dd>{[local.rank === null ? null : `#${local.rank}`, local.scoreDisplay].filter(Boolean).join(' · ')}</dd>
+            </>}
+            {local && <><dt className="text-muted">Recorded at</dt><dd>{formatDateTime(local.verifiedAt)}</dd></>}
+          </dl>
+          {official && (checks.length ? <ul className="space-y-1 border-t border-line pt-2">
+            {[...checks].sort((a, b) => Number(b.status === 'fail') - Number(a.status === 'fail')).map((check, index) => (
+              <li key={`${check.name}-${index}`}>
+                <span className={check.status === 'fail' ? 'font-medium text-danger' : 'font-medium'}>{statusLabel(check.name)} · {statusLabel(check.status)}</span>
+                {check.reason && <span> · {check.reason}</span>}
+              </li>
+            ))}
+          </ul> : <p>No check details reported.</p>)}
+        </div>
+      </details>
+    </li>
+  );
+}
 
 export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards }) => {
-  const [accountHandle, setAccountHandle] = useState('@0xkeinara');
   const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
   const [bounties, setBounties] = useState<BountyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [recordsError, setRecordsError] = useState('');
+  const [saveStatus, setSaveStatus] = useState('');
+  const account = useMakefunAccountMonitor();
+  const snapshot = account.data?.snapshot;
 
   const [showAdd, setShowAdd] = useState(false);
   const [slug, setSlug] = useState('');
@@ -40,33 +74,35 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
   const [scoreDisplay, setScoreDisplay] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [sRes, bRes] = await Promise.all([
-        fetch('/api/submissions'),
-        fetch('/api/bounties?status=all'),
-      ]);
-      const sData = await sRes.json();
-      const bData = await bRes.json();
-      setAccountHandle(sData.accountHandle || '@0xkeinara');
-      setSubmissions(sData.submissions || []);
-      const bList = (bData.items || []) as BountyRecord[];
-      setBounties(bList);
-      if (bList.length > 0 && !slug) setSlug(bList[0].slug);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadData();
+    const controller = new AbortController();
+    async function loadRecords() {
+      try {
+        const [sRes, bRes] = await Promise.all([
+          fetch('/api/submissions', { signal: controller.signal }),
+          fetch('/api/bounties?status=all', { signal: controller.signal }),
+        ]);
+        if (!sRes.ok || !bRes.ok) throw new Error('Could not load local submission records.');
+        const [sData, bData] = await Promise.all([sRes.json(), bRes.json()]);
+        if (controller.signal.aborted) return;
+        setSubmissions(sData.submissions ?? []);
+        setBounties(bData.items ?? []);
+        setSlug(current => current || bData.items?.[0]?.slug || '');
+      } catch {
+        if (!controller.signal.aborted) setRecordsError('Could not load local submission records.');
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    void loadRecords();
+    return () => controller.abort();
   }, []);
 
   const handleRecordSubmission = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!slug || !entryTitle.trim()) return;
     setSaving(true);
+    setSaveStatus('');
     try {
       const res = await fetch('/api/submissions', {
         method: 'POST',
@@ -81,58 +117,69 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
           scoreDisplay: scoreDisplay.trim() || null,
         }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setSubmissions((prev) => [data.submission, ...prev]);
-        setShowAdd(false);
-        setEntryTitle('');
-        setCommitSha('');
-        setRepoUrl('');
-        setRank('');
-        setScoreDisplay('');
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not save the manual record.');
+      setSubmissions((prev) => [data.submission, ...prev]);
+      setFilterStatus('all');
+      setShowAdd(false);
+      setEntryTitle('');
+      setCommitSha('');
+      setRepoUrl('');
+      setRank('');
+      setScoreDisplay('');
+      setSaveStatus('Manual submission record saved.');
+    } catch (error) {
+      setSaveStatus((error as Error).message);
     } finally {
       setSaving(false);
     }
   };
 
-  const filtered =
-    filterStatus === 'all'
-      ? submissions
-      : submissions.filter((s) => s.status === filterStatus);
+  const entries = mergeSubmissionEntries(snapshot?.entries ?? [], submissions);
+  const filtered = entries.filter(entry => matchesSubmissionStatus(entry, filterStatus));
+  const filters = new Set(['rejected', 'superseded', ...entries.map(entry => entry.stage)]);
+  const bountyTitles = new Map(bounties.map(bounty => [bounty.slug, bounty.title]));
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-line">
         <div>
           <h1 className="text-[clamp(1.55rem,3vw,2.25rem)] font-semibold text-ink tracking-tight">
-            Verified Submissions
+            Submissions
           </h1>
           <p className="text-xs text-muted mt-1">
-            Official submissions matched for {accountHandle} or recorded from verified make.fun receipts
+            {snapshot ? `@${snapshot.handle.replace(/^@/, '')} · make.fun synced ${formatDateTime(snapshot.syncedAt)}`
+              : account.data?.connection === 'disconnected' ? 'Connect your make.fun account in Settings to sync submissions.'
+              : account.error ? 'Account data unavailable.' : 'Waiting for account data…'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {account.canSync && <Button variant="secondary" size="sm" onClick={account.sync} disabled={account.busy || account.data?.syncing}>
+            {account.busy || account.data?.syncing ? 'Syncing…' : 'Sync now'}
+          </Button>}
           <Button variant="secondary" size="sm" onClick={onRewards}>Review rewards</Button>
-          <Button variant="primary" size="sm" onClick={() => setShowAdd((v) => !v)}>
-            <Plus className="w-3.5 h-3.5" />
-            <span>Record Verified Receipt</span>
+          <Button variant="primary" size="sm" aria-expanded={showAdd} onClick={() => { setSaveStatus(''); setShowAdd(v => !v); }}>
+            <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Add manual record</span>
           </Button>
         </div>
       </div>
 
-      <div className="rounded-md bg-surface border border-line px-4 py-2.5 text-xs text-muted">
-        Submission status comes from make.fun or a verified receipt. Local evidence is reviewed in Evidence Monitor.
-      </div>
+      {(account.error || account.data?.error) && <p className="text-sm text-secondary" role="status">{account.error || account.data?.error}</p>}
+      {recordsError && <p className="text-sm text-secondary" role="status">{recordsError}</p>}
+      {snapshot && snapshot.entryCount > snapshot.entries.length && <p className="text-sm text-muted">
+        make.fun returned {snapshot.entries.length} of {snapshot.entryCount} official submissions.
+      </p>}
+      {saveStatus && <p className="text-sm text-secondary" role="status">{saveStatus}</p>}
 
       {showAdd && (
         <Panel>
-          <PanelHeader title="Record Verified make.fun Submission Receipt" />
+          <PanelHeader title="Add a manual submission record" />
           <form onSubmit={handleRecordSubmission} className="p-5 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs text-muted mb-1">Competition</label>
-                <Select value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full">
+                <label htmlFor="submission-competition" className="block text-xs text-muted mb-1">Competition</label>
+                <Select id="submission-competition" value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full">
                   {bounties.map((b) => (
                     <option key={b.slug} value={b.slug}>
                       {b.title}
@@ -141,8 +188,9 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
                 </Select>
               </div>
               <div>
-                <label className="block text-xs text-muted mb-1">Entry Title</label>
+                <label htmlFor="submission-title" className="block text-xs text-muted mb-1">Entry Title</label>
                 <Input
+                  id="submission-title"
                   value={entryTitle}
                   onChange={(e) => setEntryTitle(e.target.value)}
                   placeholder="Submission title"
@@ -150,8 +198,9 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
                 />
               </div>
               <div>
-                <label className="block text-xs text-muted mb-1">Verified Status</label>
+                <label htmlFor="submission-status" className="block text-xs text-muted mb-1">Recorded status</label>
                 <Select
+                  id="submission-status"
                   value={status}
                   onChange={(e) => setStatus(e.target.value as SubmissionStatus)}
                   className="w-full"
@@ -166,24 +215,27 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs text-muted mb-1">Commit SHA (Optional)</label>
+                <label htmlFor="submission-commit-sha" className="block text-xs text-muted mb-1">Commit SHA (Optional)</label>
                 <Input
+                  id="submission-commit-sha"
                   value={commitSha}
                   onChange={(e) => setCommitSha(e.target.value)}
                   placeholder="40-char commit SHA"
                 />
               </div>
               <div>
-                <label className="block text-xs text-muted mb-1">Repo URL (Optional)</label>
+                <label htmlFor="submission-repo-url" className="block text-xs text-muted mb-1">Repo URL (Optional)</label>
                 <Input
+                  id="submission-repo-url"
                   value={repoUrl}
                   onChange={(e) => setRepoUrl(e.target.value)}
                   placeholder="https://github.com/..."
                 />
               </div>
               <div>
-                <label className="block text-xs text-muted mb-1">Rank (If Judged)</label>
+                <label htmlFor="submission-rank" className="block text-xs text-muted mb-1">Rank (If Judged)</label>
                 <Input
+                  id="submission-rank"
                   type="number"
                   value={rank}
                   onChange={(e) => setRank(e.target.value)}
@@ -191,8 +243,9 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
                 />
               </div>
               <div>
-                <label className="block text-xs text-muted mb-1">Score (If Judged)</label>
+                <label htmlFor="submission-score" className="block text-xs text-muted mb-1">Score (If Judged)</label>
                 <Input
+                  id="submission-score"
                   value={scoreDisplay}
                   onChange={(e) => setScoreDisplay(e.target.value)}
                   placeholder="e.g. 1420 Elo"
@@ -200,8 +253,8 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button type="submit" variant="primary" size="sm" disabled={saving}>
-                {saving ? 'Saving...' : 'Save Verified Record'}
+              <Button type="submit" variant="primary" size="sm" disabled={saving || !slug}>
+                {saving ? 'Saving…' : 'Save manual record'}
               </Button>
               <Button type="button" variant="ghost" size="sm" onClick={() => setShowAdd(false)}>
                 Cancel
@@ -213,29 +266,17 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
 
       <Panel>
         <PanelHeader
-          title={`Submission Records (${filtered.length})`}
+          title={`Submission records (${filtered.length})`}
           actions={
-            <div role="group" aria-label="Filter submission records" className="flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-line bg-canvas p-1">
-              {(['all', 'submitted', 'accepted', 'judged', 'awarded'] as const).map((st) => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => setFilterStatus(st)}
-                  aria-pressed={filterStatus === st}
-                  className={`min-h-11 px-2.5 text-xs rounded cursor-pointer capitalize ${
-                    filterStatus === st
-                      ? 'bg-accent-wash text-accent'
-                      : 'text-muted hover:text-ink'
-                  }`}
-                >
-                  {st}
-                </button>
-              ))}
-            </div>
+            <Select aria-label="Filter submissions by status" value={filterStatus} onChange={event => setFilterStatus(event.target.value)}>
+              <option value="all">All statuses</option>
+              {[...filters].map(value => <option key={value} value={value}>{value.charAt(0).toUpperCase() + statusLabel(value.slice(1))}</option>)}
+              {!filters.has(filterStatus) && filterStatus !== 'all' && <option value={filterStatus}>{statusLabel(filterStatus)}</option>}
+            </Select>
           }
         />
 
-        {loading ? (
+        {loading || (!account.data && !account.error) ? (
           <div className="p-6 space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-12 rounded bg-hover animate-pulse" />
@@ -243,64 +284,14 @@ export const SubmissionsView: React.FC<{ onRewards: () => void }> = ({ onRewards
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState
-            title={`No verified submissions found for ${accountHandle}`}
-            description="When you enter a make.fun competition and sync its detail/leaderboard snapshot—or record a verified submission receipt—its status will appear here."
-            action={
-              <Button variant="secondary" size="sm" onClick={() => setShowAdd(true)}>
-                Record Verified Receipt
-              </Button>
-            }
+            title={filterStatus === 'all' ? 'No submission records available' : 'No submissions match this filter'}
+            description={filterStatus === 'all' ? 'Sync your connected make.fun account or add a manual record.' : 'Choose All statuses to see every available entry.'}
           />
         ) : (
-          <div className="overflow-x-auto" role="region" aria-label="Submission records table" tabIndex={0}>
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-line text-xs text-muted">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Competition</th>
-                  <th className="px-4 py-3 font-medium">Entry Title</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium text-right">Rank / Score</th>
-                  <th className="px-4 py-3 font-medium">Provenance</th>
-                  <th className="px-4 py-3 font-medium">Verified At</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {filtered.map((s) => {
-                  const meta = STATUS_META[s.status] || STATUS_META.submitted;
-                  const Icon = meta.Icon;
-                  return (
-                    <tr key={s.id} className="hover:bg-hover">
-                      <td className="px-4 py-3 font-medium text-ink">
-                        {s.bountyTitle || s.bountySlug}
-                      </td>
-                      <td className="px-4 py-3 text-secondary">
-                        <div>{s.entryTitle}</div>
-                        {s.commitSha && (
-                          <div className="font-mono text-[11px] text-muted">
-                            {s.commitSha.slice(0, 12)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${meta.colorClass}`}>
-                          <Icon className="w-3.5 h-3.5" />
-                          <span>{meta.label}</span>
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums text-xs text-ink">
-                        {s.rank ? `#${s.rank}` : '—'}
-                        {s.scoreDisplay ? ` · ${s.scoreDisplay}` : ''}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-muted">{s.source}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-muted tabular-nums">
-                        {formatDateTime(s.verifiedAt)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ul aria-label="Submission records" className="divide-y divide-line">
+            {filtered.map(entry => <SubmissionRow key={entry.id} entry={entry}
+              bountyTitle={bountyTitles.get(entry.bountySlug) || entry.local?.bountyTitle || entry.bountySlug} />)}
+          </ul>
         )}
       </Panel>
     </div>

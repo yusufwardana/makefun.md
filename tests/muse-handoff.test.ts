@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
 import { buildMusePackage, formatMuseMarkdown } from '../server/muse-handoff.ts';
-import { museBootstrap } from '../src/lib/muse-bootstrap.ts';
+import { formatEnhancedMuseBootstrap, museBootstrap } from '../src/lib/muse-bootstrap.ts';
+import { selectMuseSkills } from '../server/muse-skill-enhancement.ts';
 import { musePackageSchema } from '../src/types/muse-package.ts';
 import type { BountyRecord, BountySnapshot } from '../src/types/command-center.ts';
 
@@ -101,6 +102,16 @@ test('Markdown has the ordered handoff contract and renders external text inside
   assert.ok(md.endsWith(museBootstrap + '\n'));
   assert.match(museBootstrap, /Skill Registry/);
   assert.match(museBootstrap, /Explicitly read each selected SKILL\.md/);
+  for (const skill of ['requirements-mapping', 'bounty-build', 'qa-evidence', 'submission-gate']) {
+    assert.ok(museBootstrap.includes(`.agents/skills/${skill}/SKILL.md`), skill);
+  }
+  assert.match(museBootstrap, /do not rely on automatic skill discovery/i);
+  assert.match(museBootstrap, /report the exact paths/i);
+  const bootstrapSteps = museBootstrap.split('\n');
+  const reviewStep = bootstrapSteps.findIndex(step => step.includes('Classify the bounty'));
+  const selectionStep = bootstrapSteps.findIndex(step => step.includes('From that review, select'));
+  const readStep = bootstrapSteps.findIndex(step => step.includes('Explicitly read each selected'));
+  assert.ok(reviewStep >= 0 && reviewStep < selectionStep && selectionStep < readStep);
   assert.match(museBootstrap, /before implementation/);
   assert.match(museBootstrap, /previous bounty/);
   assert.doesNotMatch(md, /PRIVATE_|LEGACY_COMPOSITE/);
@@ -118,4 +129,43 @@ test('committed schema and synthetic examples match the exporter', () => {
     if (process.env.UPDATE_MUSE_EXAMPLES === '1') writeFileSync(path, content);
     assert.equal(readFileSync(path, 'utf8'), content);
   }
+});
+
+test('Enhance sends public bounty criteria to Gemini and resolves skill paths from the workspace catalog', async () => {
+  const pkg = buildMusePackage(bounty, snapshot, leaderboard, now);
+  const analysis = await selectMuseSkills(pkg, 'fixture-key', async (url, request) => {
+    assert.match(String(url), /gemini-3\.1-flash-lite:generateContent$/);
+    assert.equal(new Headers(request?.headers).get('x-goog-api-key'), 'fixture-key');
+    const payload = JSON.parse(String(request?.body));
+    const context = JSON.parse(payload.contents[0].parts[0].text);
+    assert.ok(!payload.generationConfig.responseJsonSchema.properties.skills.items.properties.id.enum.includes('react-best-practices'));
+    assert.equal(context.officialPrompt, prompt);
+    assert.deepEqual(context.deliverables, pkg.deliverables);
+    assert.doesNotMatch(String(request?.body), /PRIVATE_|fixture-key/);
+    return Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({
+      category: 'Software', basis: 'The deliverable is a repository.', skills: [
+        { id: 'bounty-build', reason: 'Prepare the required repository.' },
+        { id: 'frontend-design', reason: 'Design the interface for the repository deliverable.' },
+      ],
+    }) }] } }] });
+  });
+  assert.equal(analysis.skills[1].path, '.agents/skills/bounty-build/SKILL.md');
+  assert.equal(analysis.skills[0].github?.repository, 'anthropics/skills');
+  assert.match(analysis.skills[0].github!.skillUrl, /github\.com\/anthropics\/skills\/blob\/[a-f0-9]{40}\/skills\/frontend-design\/SKILL\.md$/);
+  const bootstrap = formatEnhancedMuseBootstrap(pkg.bounty.slug, analysis);
+  assert.ok(bootstrap.includes(`${pkg.bounty.slug}.md`));
+  assert.ok(bootstrap.includes(`${pkg.bounty.slug}.json`));
+  assert.match(bootstrap, /Software/);
+  assert.match(bootstrap, /\.agents\/skills\/bounty-build\/SKILL\.md/);
+  assert.match(bootstrap, /Open and read each selected SKILL\.md/);
+  assert.ok(bootstrap.includes(analysis.skills[0].github!.skillUrl));
+});
+
+test('Enhance rejects skill IDs outside the workspace catalog', async () => {
+  const pkg = buildMusePackage(bounty, snapshot, leaderboard, now);
+  await assert.rejects(selectMuseSkills(pkg, 'fixture-key', async () => Response.json({ candidates: [{
+    finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ category: 'Software', basis: 'Repository',
+      skills: [{ id: '../arbitrary-file', reason: 'Invalid skill' }],
+    }) }] },
+  }] })), /valid skill selection/);
 });

@@ -43,7 +43,9 @@ Download the [Phase 1 workspace ZIP](docs/muse-bounty-agent.zip) for the workspa
 
 For a handoff test, ask Muse to report package validation, which skills it loaded, missing information, and readiness. Get separate approval before building or submitting. Set up official session recording before implementation if the bounty requires it.
 
-Use **Evidence Monitor** to review the current session's evidence. The dashboard runs nine preliminary transcript checks. make.fun handles official validation. Track receipts in **Submissions** and see announced, awarded, and received amounts in **Rewards Analytics**.
+Use **Evidence Monitor** to see recording metadata and official submission checks from the make.fun API. Connect your account, select a bounty, and use **Sync make.fun** to refresh the data. **Submissions** shows entry status, and **Rewards Analytics** shows rewards and payout status.
+
+Open **Settings → Connect make.fun** and enter an API key from your make.fun profile to see official submissions and rewards in the dashboard. **Bounty Explorer → Watchlist** shows deadlines, entry availability, and public leaderboard positions. The server syncs the account and watchlist every 30 minutes by default. Change the interval in Settings or choose **Sync now** to refresh immediately.
 
 The dashboard reads public make.fun endpoints through GET requests. Builds, registrations, submissions, and transactions take place outside the dashboard. You can run Command Center without an LLM account.
 
@@ -71,13 +73,13 @@ The server validates each JSON export against the schema. The package includes s
 
 The package ID and content checksum use the same hash. Its input includes the top-level fields from `bounty` through `submissionRequirements`, the four URL fields from `sourceProvenance` copied to the top level, and `missingInformation`. Timestamps and freshness status are outside the package hash. For both hashes, the server uses compact UTF-8 JSON, sorts object keys recursively, keeps arrays in their original order, and serializes numbers and strings as JavaScript does. Use the checksum to verify the package content. make.fun verifies official acceptance.
 
-Download the package with `GET /api/bounties/:slug/muse-export` and `format=json` or `format=markdown`. The endpoint only reads the local SQLite snapshot and returns an attachment with a fixed filename. If you pass the optional checksum from the detail view and the content has changed, the server returns HTTP 409. Use refresh in the UI to fetch a newer source.
+Download the package with `GET /api/bounties/:slug/muse-export` and `format=json` or `format=markdown`. The endpoint reads the local SQLite snapshot and uses the bounty slug as the filename, such as `makefun-frontend-01.json` or `makefun-frontend-01.md`. If you pass the optional checksum from the detail view and the content has changed, the server returns HTTP 409. Use refresh in the UI to fetch a newer source.
 
 The server limits source links to the official make.fun origin. Code fences in the Markdown export keep external markup as plain text.
 
 ## <img src="docs/icons/database.svg" alt="" width="20" height="20"> SQLite data
 
-The default database is `data/cosmiclabs.db`. Set `COSMICLABS_DB_PATH` to use an existing database or a separate test file. The app keeps the existing SQLite schema and preserves the archived `ai_analyses`, `prompt_drafts`, `prompt_versions`, legacy prompt overrides, and prior provider settings in place. Evidence still uses the `hermes_evidence` table.
+The default database is `data/cosmiclabs.db`. Set `COSMICLABS_DB_PATH` to use an existing database or a separate test file. The app keeps the legacy SQLite schema, including the archived `ai_analyses`, `prompt_drafts`, `prompt_versions`, and `hermes_evidence` tables.
 
 The app keeps existing `.env` files. It no longer loads the settings and secrets from the retired enhancement workflow.
 

@@ -266,6 +266,7 @@ export default function App() {
           {activeTab === 'settings' && (
             <SettingsView
               settings={settings}
+              onMakefunConnected={fetchOverviewAndSettings}
               onSettingsSaved={(updated) => {
                 setSettings(updated);
                 fetchOverviewAndSettings();
