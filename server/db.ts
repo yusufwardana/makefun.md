@@ -22,6 +22,32 @@ import type {
 
 export type CommandCenterDatabase = BetterSQLite3Database<typeof drizzleSchema>;
 
+// True when running on a hosted serverless platform (Vercel) instead of a
+// local machine. On hosted runs the only writable directory is the temp
+// dir, so the SQLite file lives there and is rebuilt from make.fun on
+// cold start (the bounties list auto-syncs when the DB is empty).
+export const hosted =
+  process.env.VERCEL === '1' || Boolean(process.env.TURSO_DATABASE_URL);
+
+// Resolved SQLite file location. Local runs keep ./data/cosmiclabs.db;
+// hosted runs use /tmp (Vercel's deployment filesystem is read-only).
+export const localDatabasePath =
+  process.env.COSMICLABS_DB_PATH ||
+  (hosted
+    ? path.join('/tmp', 'cosmiclabs.db')
+    : path.join(path.resolve(process.cwd(), 'data'), 'cosmiclabs.db'));
+
+// Idempotent schema setup for the default connection. The connection is
+// created at module import, so this is normally a no-op safety net for
+// serverless cold starts, where createApp() runs before the first request.
+export function initializeDatabase(): void {
+  const dir = path.dirname(localDatabasePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  initSqliteSchema(db);
+}
+
 export function initSqliteSchema(sqlite: Database.Database): void {
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
@@ -215,10 +241,9 @@ export function createDatabaseConnection(dbFilePath?: string): {
   sqlite: Database.Database;
   orm: CommandCenterDatabase;
 } {
-  const targetPath =
-    dbFilePath ||
-    process.env.COSMICLABS_DB_PATH ||
-    path.join(path.resolve(process.cwd(), 'data'), 'cosmiclabs.db');
+  // Default is localDatabasePath: ./data/cosmiclabs.db locally, /tmp on
+  // hosted runs (the deployment filesystem is read-only outside /tmp).
+  const targetPath = dbFilePath || localDatabasePath;
 
   if (targetPath !== ':memory:') {
     const dir = path.dirname(targetPath);

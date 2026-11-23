@@ -138,6 +138,9 @@ export interface RewardRecord {
 
 export interface AppSettings {
   authRequired: boolean;
+  // True on hosted deployments (Vercel). The frontend uses it to show the
+  // hosted variants of the operator unlock, Enhance AI, and sync sections.
+  hosted?: boolean;
   enhanceAi: {
     provider: string;
     model: string;

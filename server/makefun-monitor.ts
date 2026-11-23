@@ -86,11 +86,27 @@ function rememberAccountHandle(handle: string) {
   if (crud.getSettingValue('accountHandle') !== tracked) crud.setSettingValue('accountHandle', tracked);
 }
 
+// make.fun API key: saved file first (Settings UI), env var fallback
+// (Vercel). The file lives next to the SQLite DB, which is ephemeral on
+// hosted runs, so the env var is what survives redeploys there.
+async function readMakefunApiKey(credentialPath: string): Promise<string> {
+  try {
+    return (await fs.promises.readFile(credentialPath, 'utf8')).trim();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    return process.env.MAKEFUN_API_KEY?.trim() || '';
+  }
+}
+
+function hasMakefunApiKey(credentialPath: string): boolean {
+  return fs.existsSync(credentialPath) || Boolean(process.env.MAKEFUN_API_KEY?.trim());
+}
+
 export function createMakefunMonitor(credentialPath: string, bindHost: string) {
   const router = Router();
   const limit = createRateLimiter({ bucket: 'makefun-monitor', windowMs: 60_000, maxRequests: 12 });
   let account: MakefunAccountMonitor = {
-    connection: fs.existsSync(credentialPath) ? 'pending' : 'disconnected', syncing: false, error: null, snapshot: null,
+    connection: hasMakefunApiKey(credentialPath) ? 'pending' : 'disconnected', syncing: false, error: null, snapshot: null,
   };
   let accountRequest: Promise<void> | undefined;
   let updatingConnection = false;
@@ -109,7 +125,7 @@ export function createMakefunMonitor(credentialPath: string, bindHost: string) {
       lastAccountAttempt = Date.now();
       account = { ...account, syncing: true, error: null };
       try {
-        const key = (await fs.promises.readFile(credentialPath, 'utf8')).trim();
+        const key = await readMakefunApiKey(credentialPath);
         const snapshot = await fetchAccountSnapshot(key);
         rememberAccountHandle(snapshot.handle);
         account = { connection: 'connected', syncing: false, error: null, snapshot };
@@ -187,7 +203,7 @@ export function createMakefunMonitor(credentialPath: string, bindHost: string) {
     }
     const version = connectionVersion;
     try {
-      const key = (await fs.promises.readFile(credentialPath, 'utf8')).trim();
+      const key = await readMakefunApiKey(credentialPath);
       const result = recordingsSchema.parse(await clientFor(key).json('GET', '/api/recordings', {
         query: { competition: competition.data },
       }));

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "bun install --frozen-lockfile",
+  "buildCommand": "bun run build",
+  "outputDirectory": "dist",
+  "regions": ["hnd1"],
+  "functions": {
+    "api/backend.ts": { "maxDuration": 60 }
+  },
+  "rewrites": [
+    { "source": "/api/:route*", "destination": "/api/backend?__makefun_path=:route*" }
+  ],
+  "crons": [
+    { "path": "/api/cron/sync", "schedule": "0 0 * * *" }
+  ]
+}
